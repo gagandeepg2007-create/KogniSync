@@ -1,0 +1,31 @@
+airline_id,iata,name,alliance,country_id,low_cost,updated_at
+arl_2981080f,6E,IndiGo,none,cnt_ff5051ed,1,2026-08-18T10:00:00+05:30
+arl_841c6e99,AI,Air India,star_alliance,cnt_ff5051ed,0,2026-08-18T10:00:00+05:30
+arl_6317d870,UK,Vistara,none,cnt_ff5051ed,0,2026-08-18T10:00:00+05:30
+arl_4939343e,SG,SpiceJet,none,cnt_ff5051ed,1,2026-08-18T10:00:00+05:30
+arl_b97400e0,QP,Akasa Air,none,cnt_ff5051ed,1,2026-08-18T10:00:00+05:30
+arl_ef62470d,IX,Air India Express,none,cnt_ff5051ed,1,2026-08-18T10:00:00+05:30
+arl_28f00e8b,EK,Emirates,none,cnt_442ba9c5,0,2026-08-18T10:00:00+05:30
+arl_154ebf3d,EY,Etihad Airways,none,cnt_442ba9c5,0,2026-08-18T10:00:00+05:30
+arl_dbae8242,QR,Qatar Airways,oneworld,cnt_66747322,0,2026-08-18T10:00:00+05:30
+arl_1cfc4640,SQ,Singapore Airlines,star_alliance,cnt_316b34ed,0,2026-08-18T10:00:00+05:30
+arl_c56d378a,TG,Thai Airways,star_alliance,cnt_26b73083,0,2026-08-18T10:00:00+05:30
+arl_077dea23,MH,Malaysia Airlines,oneworld,cnt_dacecf42,0,2026-08-18T10:00:00+05:30
+arl_508d631b,UL,SriLankan Airlines,oneworld,cnt_b8092331,0,2026-08-18T10:00:00+05:30
+arl_a487a152,RA,Nepal Airlines,none,cnt_85022b8d,0,2026-08-18T10:00:00+05:30
+arl_7784367f,KB,Drukair,none,cnt_e0e8c591,0,2026-08-18T10:00:00+05:30
+arl_3a276287,BA,British Airways,oneworld,cnt_ff87fe81,0,2026-08-18T10:00:00+05:30
+arl_534d3a8a,LH,Lufthansa,star_alliance,cnt_b19984f4,0,2026-08-18T10:00:00+05:30
+arl_7f79d7b3,AF,Air France,skyteam,cnt_5576825b,0,2026-08-18T10:00:00+05:30
+arl_403656a7,LX,Swiss,star_alliance,cnt_93e73c95,0,2026-08-18T10:00:00+05:30
+arl_692cd6f4,JL,Japan Airlines,oneworld,cnt_28707a4d,0,2026-08-18T10:00:00+05:30
+arl_a0bf222e,KE,Korean Air,skyteam,cnt_b34d2ba5,0,2026-08-18T10:00:00+05:30
+arl_8ac08b06,CZ,China Southern,skyteam,cnt_811a9fee,0,2026-08-18T10:00:00+05:30
+arl_75d2a12c,QF,Qantas,oneworld,cnt_502f567c,0,2026-08-18T10:00:00+05:30
+arl_68688da8,NZ,Air New Zealand,star_alliance,cnt_aeffe755,0,2026-08-18T10:00:00+05:30
+arl_666b65b1,AC,Air Canada,star_alliance,cnt_6dcf9887,0,2026-08-18T10:00:00+05:30
+arl_2a88a2c3,UA,United Airlines,star_alliance,cnt_977ee116,0,2026-08-18T10:00:00+05:30
+arl_56da328b,GA,Garuda Indonesia,skyteam,cnt_3d8714fa,0,2026-08-18T10:00:00+05:30
+arl_a852cdd9,VJ,VietJet Air,none,cnt_09cc28b5,1,2026-08-18T10:00:00+05:30
+arl_cbee96ac,GF,Gulf Air,none,cnt_87dd6095,0,2026-08-18T10:00:00+05:30
+arl_2fae0fe3,KU,Kuwait Airways,none,cnt_968dde84,0,2026-08-18T10:00:00+05:30

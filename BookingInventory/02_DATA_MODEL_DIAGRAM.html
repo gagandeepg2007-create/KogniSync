@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>APS-05 — Distributed Booking & Inventory System</title>
+<style>
+:root{
+  --bg:#faf9f7; --panel:#fff; --line:#e5e2dd; --ink:#1b1917; --muted:#6f6a64;
+  --soft:#f4f2ef; --accent:#1f4ed8; --shadow:0 1px 2px rgba(28,25,23,.06),0 8px 24px rgba(28,25,23,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:14px/1.55 ui-sans-serif,-apple-system,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+     background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+.app{display:grid;grid-template-columns:264px 1fr 400px;grid-template-rows:auto 1fr;height:100vh}
+header{grid-column:1/-1;display:flex;align-items:baseline;gap:14px;padding:12px 20px;
+  background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:15px;margin:0;font-weight:650;letter-spacing:-.01em}
+header .sub{font-size:12px;color:var(--muted)}
+header .spacer{flex:1}
+header .stat{font-size:12px;color:var(--muted)}
+header .stat b{color:var(--ink);font-variant-numeric:tabular-nums}
+aside,section.detail{background:var(--panel);overflow-y:auto}
+aside{border-right:1px solid var(--line);padding:14px}
+section.detail{border-left:1px solid var(--line);padding:0}
+main{position:relative;overflow:hidden;background:
+  radial-gradient(circle at 1px 1px, #e8e5e0 1px, transparent 0) 0 0/22px 22px, var(--bg)}
+h2{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+   margin:18px 0 7px;font-weight:650}
+h2:first-child{margin-top:0}
+input[type=search],select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;
+  background:var(--panel);font:inherit;font-size:13px;color:var(--ink)}
+input[type=search]:focus,select:focus{outline:2px solid #c7d2fe;outline-offset:-1px;border-color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:3px 9px;
+  font-size:12px;cursor:pointer;user-select:none;transition:.12s}
+.chip:hover{background:var(--soft)}
+.chip[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.legend{display:flex;flex-direction:column;gap:3px;font-size:12px}
+.legend div{display:flex;align-items:center;gap:7px;cursor:pointer;padding:2px 4px;border-radius:5px}
+.legend div:hover{background:var(--soft)}
+.legend div.off{opacity:.35}
+.sw{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.hint{font-size:12px;color:var(--muted);line-height:1.45}
+svg{width:100%;height:100%;display:block;cursor:grab}
+svg.drag{cursor:grabbing}
+.node rect{fill:var(--panel);stroke-width:1.25;transition:opacity .18s}
+.node text{font-size:10.5px;paint-order:stroke;pointer-events:none;font-weight:520}
+.node .rows{font-size:9px;fill:var(--muted);font-variant-numeric:tabular-nums}
+.node{cursor:pointer}
+.node.dim{opacity:.11}
+.node.sel rect{stroke-width:2.6}
+.edge{fill:none;stroke:#b9b3ab;stroke-width:1;opacity:.42;transition:opacity .18s,stroke .18s}
+.edge.dim{opacity:.05}
+.edge.hi{stroke:var(--accent);stroke-width:2.2;opacity:1}
+#edges.focus .edge:not(.hi){opacity:.09}
+.edge.poly{stroke-dasharray:3 3}
+.tier1 rect{stroke:#1b1917}
+.badge{display:inline-block;font-size:10px;padding:1px 6px;border-radius:5px;background:var(--soft);
+  border:1px solid var(--line);color:var(--muted);vertical-align:1px}
+.detail .pad{padding:16px 18px}
+.detail h3{margin:0 0 2px;font-size:16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:-.02em;word-break:break-all}
+.detail .purpose{color:#3a3733;margin:10px 0 0;font-size:13px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+table.cols{width:100%;border-collapse:collapse;font-size:12px}
+table.cols th{text-align:left;font-weight:600;color:var(--muted);font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;border-bottom:1px solid var(--line);
+  position:sticky;top:0;background:var(--panel)}
+table.cols td{padding:6px 8px;border-bottom:1px solid #f1efec;vertical-align:top}
+table.cols tr:hover td{background:#fbfaf8}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px}
+.k{color:#0f766e}
+.fk{color:var(--accent);cursor:pointer;text-decoration:underline;text-decoration-style:dotted}
+.nn{color:#9a938a}
+.note{color:var(--muted);font-size:11.5px}
+.empty{padding:40px 20px;color:var(--muted);font-size:13px;text-align:center}
+.tabs{display:flex;gap:2px;padding:10px 14px 0;border-bottom:1px solid var(--line)}
+.tab{padding:6px 11px;border:1px solid transparent;border-bottom:none;border-radius:7px 7px 0 0;
+  font-size:12.5px;cursor:pointer;color:var(--muted)}
+.tab[aria-selected=true]{background:var(--panel);border-color:var(--line);color:var(--ink);
+  font-weight:600;margin-bottom:-1px}
+.psbox{border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-top:10px;background:var(--soft)}
+.psbox b{font-size:13px}
+.psbox p{margin:5px 0 0;font-size:12px;color:var(--muted)}
+.controls{position:absolute;right:12px;bottom:12px;display:flex;gap:6px}
+.controls button{border:1px solid var(--line);background:var(--panel);border-radius:7px;width:30px;
+  height:30px;font-size:15px;cursor:pointer;box-shadow:var(--shadow);color:var(--ink)}
+.controls button:hover{background:var(--soft)}
+.searchres{margin-top:8px;max-height:220px;overflow:auto}
+.searchres div{padding:4px 7px;border-radius:6px;cursor:pointer;font-size:12.5px;
+  font-family:ui-monospace,Menlo,monospace}
+.searchres div:hover{background:var(--soft)}
+.searchres small{font-family:ui-sans-serif,system-ui;color:var(--muted);margin-left:6px}
+@media (max-width:1200px){.app{grid-template-columns:220px 1fr 330px}}
+</style></head><body>
+<div class="app">
+<header>
+  <h1>APS-05 — Distributed Booking & Inventory System</h1>
+  <span class="sub">your data model · 20 tables · 41,855 rows</span>
+  <span class="spacer"></span>
+  <span class="stat"><b id="s-tables">0</b> tables · <b id="s-cols">0</b> columns ·
+        <b id="s-rows">0</b> rows · <b id="s-edges">0</b> relationships</span>
+</header>
+
+<aside>
+  <h2>Find a table or column</h2>
+  <input type="search" id="q" placeholder="hotel_reviews, spend_cap, carbon…" autocomplete="off">
+  <div class="searchres" id="qres"></div>
+
+  <div id="psfilter">
+  <h2>Filter by problem statement</h2>
+  <select id="ps"><option value="">All 16 statements</option></select>
+  <div id="psinfo"></div>
+  </div>
+
+  <h2 id="tierhead">Table role</h2>
+  <div class="chips" id="tierchips">
+    <button class="chip" id="chip1" data-tier="1" aria-pressed="false">Core tables</button>
+    <button class="chip" id="chip2" data-tier="2" aria-pressed="false">Supporting tables</button>
+    <button class="chip" id="chip3" data-spine="1" aria-pressed="false">Integration spine</button>
+  </div>
+
+  <h2>Domain</h2>
+  <div class="legend" id="legend"></div>
+
+  <h2>How to use this</h2>
+  <p class="hint" id="hint">Click any table for its full field list. Pick your problem statement
+  to dim everything you do not need. Solid lines are foreign keys; dashed lines are the
+  polymorphic <code>(entity_type, entity_id)</code> reference. Drag to pan, scroll to zoom, drag
+  a table to move it.</p>
+</aside>
+
+<main>
+  <svg id="svg"><g id="viewport">
+    <g id="edges"></g><g id="nodes"></g>
+  </g></svg>
+  <div class="controls">
+    <button id="zin" title="Zoom in">+</button>
+    <button id="zout" title="Zoom out">−</button>
+    <button id="zfit" title="Fit to screen">⤢</button>
+  </div>
+</main>
+
+<section class="detail">
+  <div class="tabs">
+    <div class="tab" id="tab-t" aria-selected="true">Table</div>
+    <div class="tab" id="tab-r">The 8 rules</div>
+    <div class="tab" id="tab-p">Packs</div>
+  </div>
+  <div id="pane"></div>
+</section>
+</div>
+
+<script>
+const MODEL = {"version":"1.1.0-rc1","release_date":"2026-08-24","scoped":{"id":"APS-05","title":"Distributed Booking & Inventory System"},"statements":[],"packs":{},"enums":{"entity_type":["hotel","room_type","rate_plan","flight","flight_fare","poi","package","package_component","guide","transfer","event","xr_scene"],"record_status":["active","inactive","archived","draft"],"property_type":["hotel","resort","homestay","hostel","apartment","boutique","heritage","guesthouse"],"bed_config":["single","twin","double","queen","king","bunk","twin_double"],"rate_plan_type":["refundable","non_refundable","breakfast_included","half_board","full_board","long_stay"],"amenity_group":["connectivity","wellness","food_beverage","family","accessibility","transport","business","outdoor"],"media_role":["hero","room","lobby","exterior","dining","pool","bathroom","view","landmark","menu","sign","receipt"],"traveller_type":["solo","couple","family","business","friends","senior","backpacker"],"travel_style":["budget","comfort","luxury","adventure","slow","cultural","wellness"],"budget_band":["shoestring","value","mid","premium","luxury"],"user_segment":["heavy","light","cold_start"],"cabin_class":["economy","premium_economy","business","first"],"fare_class":["saver","flex","standard","corporate","promo"],"poi_category":["heritage","nature","museum","religious","adventure","food","shopping","nightlife","beach","wildlife","wellness","viewpoint"],"transport_mode":["walk","cycle","auto_rickshaw","cab","bus","metro","train","ferry","flight"],"package_theme":["adventure","honeymoon","pilgrimage","family","heritage","wellness","wildlife","food_trail"],"package_tier":["standard","deluxe","premium"],"component_type":["hotel","flight","poi","transfer","guide","meal","insurance","entry_ticket"],"guide_specialisation":["heritage","food","trekking","wildlife","photography","religious","shopping","accessibility"],"trip_status":["draft","planning","confirmed","in_progress","completed","cancelled"],"member_role":["owner","editor","viewer"],"item_type":["hotel","flight","poi","package","guide","transfer","meal","free"],"item_source":["user","ai_planner","optimizer","agent","vote","import"],"item_status":["proposed","confirmed","removed","replaced"],"proposal_status":["open","accepted","rejected","expired"],"vote_value":["yes","no","abstain"],"agent_status":["planning","awaiting_input","awaiting_confirmation","executing","paused","completed","failed"],"inventory_entity_type":["room_type","flight_fare","guide","poi"],"hold_status":["active","confirmed","released","expired"],"pricing_event_type":["search","view","booking","cancellation","abandon"],"channel":["web","mobile_app","partner","call_centre","agent"],"booking_status":["pending","confirmed","partially_confirmed","cancelled","failed","refunded"],"booking_item_status":["pending","confirmed","cancelled","compensated"],"payment_method":["card","upi","netbanking","wallet","mock"],"payment_status":["initiated","authorised","captured","failed","refunded","voided"],"expense_category":["accommodation","transport","food","activities","shopping","fees","misc"],"split_type":["equal","custom","percentage","shares"],"settlement_status":["outstanding","settled","written_off"],"kb_section":["history","culture","etiquette","food","transport","safety","seasonal","practical"],"advisory_type":["weather","health","safety","transport","political","wildlife"],"advisory_level":["info","advisory","caution","warning","severe"],"risk_level":["low","moderate","elevated","high"],"alert_severity":["info","low","medium","high","critical"],"delivery_status":["queued","sent","delivered","read","failed"],"interaction_type":["view","click","like","save","book","dismiss","share","search"],"eval_intent":["budget_stay","family_stay","luxury_stay","heritage_poi","nature_poi","food_poi","adventure_package","honeymoon_package","accessibility","pet_friendly"],"dataset_split":["train","eval"],"xr_scene_type":["panorama_360","model_3d","photogrammetry","video_360"],"xr_asset_format":["jpg_equirect","gltf","glb","usdz","ktx2","mp4"],"xr_platform":["webxr","arcore","arkit","desktop_fallback"],"device_class":["phone_ar","tablet_ar","headset_vr","desktop"],"confidence_band":["high","medium","low"],"season":["winter","summer","monsoon","post_monsoon","spring","autumn"],"weather_condition":["clear","partly_cloudy","cloudy","light_rain","heavy_rain","thunderstorm","fog","haze","snow"],"error_code":["hold_expired","sold_out","over_budget","invalid_id","currency_mismatch","idempotency_conflict","constraint_infeasible","low_confidence"]},"tables":[{"name":"countries","tier":1,"domain":"Reference & geography","pack":"","rows":30,"prefix":"cnt","purpose":"ISO country reference. Every city, currency default and calling code resolves here.","serves":[],"unique":null,"checks":[],"columns":[{"name":"country_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"Canonical ID, cnt_ prefixed."},{"name":"iso2","type":"char(2)","nn":true,"pk":false,"uq":true,"fk":null,"enum":null,"note":"ISO-3166-1 alpha-2, e.g. IN."},{"name":"iso3","type":"char(3)","nn":true,"pk":false,"uq":true,"fk":null,"enum":null,"note":"ISO-3166-1 alpha-3, e.g. IND."},{"name":"name","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"English short name."},{"name":"default_currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":"ISO-4217 code."},{"name":"calling_code","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"E.164 country calling code, e.g. +91."},{"name":"region","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"UN sub-region grouping."},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Rule R4: UTC, ISO-8601 with offset."}],"actual_rows":30},{"name":"cities","tier":1,"domain":"Reference & geography","pack":"","rows":60,"prefix":"cty","purpose":"The geographic anchor of the whole model. 60 cities; every hotel, POI, package, advisory and weather row hangs off one.","serves":[],"unique":null,"checks":[],"columns":[{"name":"city_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"cty_ prefixed."},{"name":"name","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"City name."},{"name":"state","type":"text","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":"State / province, nullable for city-states."},{"name":"country_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"countries.country_id","enum":null,"note":""},{"name":"country_code","type":"char(2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Denormalised ISO2 for convenient joins."},{"name":"lat","type":"decimal(9,6)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Rule R7: WGS-84, 6dp."},{"name":"lng","type":"decimal(9,6)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Rule R7: WGS-84, 6dp."},{"name":"timezone","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"IANA zone, e.g. Asia/Kolkata."},{"name":"region","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Domestic region grouping, e.g. South India."},{"name":"population","type":"int","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Approximate, for demand weighting."},{"name":"season_profile","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"season","note":"Dominant season at the peak travel window."},{"name":"peak_months","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Comma-separated month numbers, e.g. 10,11,12."},{"name":"primary_language","type":"text","nn":true,"pk":false,"uq":false,"fk":"languages.bcp47","enum":null,"note":"Rule R6: BCP-47 tag."},{"name":"description","type":"text","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":"One-paragraph orientation blurb, used by PS-13."},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"record_status","note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":60},{"name":"airports","tier":2,"domain":"Reference & geography","pack":"","rows":80,"prefix":"apt","purpose":"So flights join airport-to-airport rather than city-to-city.","serves":[],"unique":null,"checks":[],"columns":[{"name":"airport_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"apt_ prefixed."},{"name":"iata","type":"char(3)","nn":true,"pk":false,"uq":true,"fk":null,"enum":null,"note":"IATA code."},{"name":"icao","type":"char(4)","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":"ICAO code."},{"name":"name","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"city_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"cities.city_id","enum":null,"note":""},{"name":"lat","type":"decimal(9,6)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"lng","type":"decimal(9,6)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"timezone","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"IANA."},{"name":"is_international","type":"bool","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":80},{"name":"airlines","tier":2,"domain":"Reference & geography","pack":"","rows":30,"prefix":"arl","purpose":"Carrier reference for flight schedule instances.","serves":[],"unique":null,"checks":[],"columns":[{"name":"airline_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"arl_ prefixed."},{"name":"iata","type":"char(2)","nn":true,"pk":false,"uq":true,"fk":null,"enum":null,"note":"Carrier code, e.g. 6E."},{"name":"name","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"alliance","type":"text","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":"star_alliance | oneworld | skyteam | none."},{"name":"country_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"countries.country_id","enum":null,"note":""},{"name":"low_cost","type":"bool","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Drives fare banding."},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":30},{"name":"languages","tier":1,"domain":"Reference & geography","pack":"","rows":24,"prefix":"lng","purpose":"Rule R6: BCP-47 is the only legal way to say 'language' anywhere in the model.","serves":[],"unique":null,"checks":[],"columns":[{"name":"language_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"lng_ prefixed."},{"name":"bcp47","type":"text","nn":true,"pk":false,"uq":true,"fk":null,"enum":null,"note":"e.g. ta, hi, en-IN \u2014 never 'Tamil'."},{"name":"english_name","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"native_name","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"script","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"ISO-15924, e.g. Taml, Deva, Latn."},{"name":"rtl","type":"bool","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Right-to-left rendering flag."},{"name":"tts_supported","type":"bool","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Relevant to PS-13 voice output."},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":26},{"name":"currencies","tier":1,"domain":"Reference & geography","pack":"","rows":25,"prefix":"cur","purpose":"carries the true minor-unit exponent so JPY/KWD display correctly even though storage is always DECIMAL(12,2).","serves":[],"unique":null,"checks":[],"columns":[{"name":"currency_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"cur_ prefixed."},{"name":"iso4217","type":"char(3)","nn":true,"pk":false,"uq":true,"fk":null,"enum":null,"note":"e.g. INR."},{"name":"name","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"symbol","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"minor_unit_exponent","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"0 for JPY/KRW, 2 default, 3 for KWD/BHD."},{"name":"display_locale","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"BCP-47 locale used for formatting."},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":25},{"name":"fx_rates","tier":2,"domain":"Reference & geography","pack":"","rows":900,"prefix":"fxr","purpose":"PS-08 cannot convert or settle without a dated rate table. Never overwrite the original amount; convert through here.","serves":[],"unique":["base_currency","quote_currency","rate_date"],"checks":[],"columns":[{"name":"fx_rate_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"fxr_ prefixed."},{"name":"base_currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":""},{"name":"quote_currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":""},{"name":"rate_date","type":"date","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Rule R4: zoneless calendar date."},{"name":"rate","type":"decimal(18,8)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Not money; a ratio, so higher precision is correct here."},{"name":"source","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Synthetic feed identifier."},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":912},{"name":"users","tier":1,"domain":"Identity & preference","pack":"","rows":1200,"prefix":"usr","purpose":"The traveller identity every personalisation hangs off. Segmented heavy / light / cold_start so APS-04 can prove cold start.","serves":[],"unique":null,"checks":[],"columns":[{"name":"user_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"usr_ prefixed."},{"name":"display_name","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Synthetic \u2014 no real people (content policy)."},{"name":"email","type":"text","nn":true,"pk":false,"uq":true,"fk":null,"enum":null,"note":"Synthetic @example.invalid addresses only."},{"name":"home_city_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"cities.city_id","enum":null,"note":""},{"name":"home_currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":""},{"name":"locale","type":"text","nn":true,"pk":false,"uq":false,"fk":"languages.bcp47","enum":null,"note":"UI language, BCP-47."},{"name":"budget_band","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"budget_band","note":""},{"name":"travel_style","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"travel_style","note":""},{"name":"traveller_type","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"traveller_type","note":""},{"name":"segment","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"user_segment","note":"heavy / light / cold_start cohorts."},{"name":"date_of_signup","type":"date","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"loyalty_tier","type":"text","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":"none | silver | gold \u2014 nullable by design."},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"record_status","note":""},{"name":"created_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":1200},{"name":"hotels","tier":1,"domain":"Supply & catalogue","pack":"","rows":300,"prefix":"htl","purpose":"Fewer, richer properties. Depth (reviews, room types, media) matters more than catalogue size \u2014.","serves":[],"unique":null,"checks":[],"columns":[{"name":"hotel_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"htl_ prefixed."},{"name":"city_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"cities.city_id","enum":null,"note":""},{"name":"name","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"~3% near-duplicate names injected deliberately."},{"name":"property_type","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"property_type","note":""},{"name":"star_rating","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"1\u20135, CHECK constrained."},{"name":"guest_score","type":"decimal(2,1)","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":"0.0\u201310.0; null for a handful of new properties."},{"name":"review_count","type":"int","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Denormalised count, must agree with hotel_reviews."},{"name":"address_line","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"lat","type":"decimal(9,6)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"lng","type":"decimal(9,6)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"distance_to_centre_km","type":"decimal(6,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"PS-02 filter: distance to a landmark."},{"name":"description","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Plausible prose, embeddable."},{"name":"base_currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":""},{"name":"checkin_time","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Local HH:MM at the property."},{"name":"checkout_time","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"chain_code","type":"text","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Null for independents."},{"name":"has_xr_scene","type":"bool","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"PS-05 / APS-07 \u2014 does an immersive preview exist."},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"record_status","note":""},{"name":"created_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":300},{"name":"hotel_room_types","tier":1,"domain":"Supply & catalogue","pack":"","rows":1200,"prefix":"rmt","purpose":"The bookable unit. APS-05's no-oversell guarantee is defended at this grain.","serves":[],"unique":null,"checks":[],"columns":[{"name":"room_type_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"rmt_ prefixed."},{"name":"hotel_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"hotels.hotel_id","enum":null,"note":""},{"name":"name","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"e.g. Deluxe Garden View."},{"name":"max_occupancy","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"max_adults","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"max_children","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"bed_config","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"bed_config","note":""},{"name":"size_sqm","type":"smallint","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"base_rate","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"NUMERIC, never FLOAT."},{"name":"currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":"always paired with the amount."},{"name":"total_units","type":"int","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Deliberately scarce on some rows so APS-05 has contention."},{"name":"smoking_allowed","type":"bool","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"record_status","note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":1200},{"name":"hotel_rate_plans","tier":2,"domain":"Supply & catalogue","pack":"","rows":2400,"prefix":"rtp","purpose":"Makes rate selection a real choice rather than a single price.","serves":[],"unique":null,"checks":[],"columns":[{"name":"rate_plan_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"rtp_ prefixed."},{"name":"room_type_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"hotel_room_types.room_type_id","enum":null,"note":""},{"name":"plan_type","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"rate_plan_type","note":""},{"name":"name","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"price_delta","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Signed delta applied to the room base_rate."},{"name":"currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":""},{"name":"cancellation_window_hours","type":"int","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"0 for non-refundable."},{"name":"cancellation_penalty_pct","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"includes_breakfast","type":"bool","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"min_stay_nights","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"record_status","note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":2400},{"name":"flights","tier":1,"domain":"Supply & catalogue","pack":"","rows":4000,"prefix":"flt","purpose":"Schedule instances across the search window, so a date search returns results rather than blanks.","serves":[],"unique":null,"checks":[],"columns":[{"name":"flight_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"flt_ prefixed."},{"name":"airline_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"airlines.airline_id","enum":null,"note":""},{"name":"flight_number","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"e.g. 6E-2043."},{"name":"origin_airport_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"airports.airport_id","enum":null,"note":""},{"name":"dest_airport_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"airports.airport_id","enum":null,"note":""},{"name":"departs_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Rule R4: carries offset."},{"name":"arrives_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"duration_minutes","type":"int","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"stops","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"aircraft_type","type":"text","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"cabin_classes","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Comma-separated cabin_class values available."},{"name":"carbon_kg","type":"decimal(8,3)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Per-seat estimate \u2014 APS-09 reads this."},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"record_status","note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":4000},{"name":"flight_fares","tier":2,"domain":"Supply & catalogue","pack":"","rows":8000,"prefix":"far","purpose":"The bookable unit for flights, and the second entity_type in inventory_calendar.","serves":[],"unique":null,"checks":[],"columns":[{"name":"fare_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"far_ prefixed."},{"name":"flight_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"flights.flight_id","enum":null,"note":""},{"name":"cabin_class","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"cabin_class","note":""},{"name":"fare_class","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"fare_class","note":""},{"name":"base_fare","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"D3."},{"name":"taxes","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":""},{"name":"baggage_kg","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"cabin_baggage_kg","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"changeable","type":"bool","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"change_fee","type":"decimal(12,2)","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"refundable","type":"bool","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"seats_total","type":"int","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"record_status","note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":8002},{"name":"trips","tier":1,"domain":"Trip & itinerary","pack":"","rows":600,"prefix":"trp","purpose":"The container that gives dates, party, destination and budget to everything else. Seven statements produce or consume one.","serves":[],"unique":null,"checks":[],"columns":[{"name":"trip_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"trp_ prefixed."},{"name":"owner_user_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"users.user_id","enum":null,"note":""},{"name":"title","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"origin_city_id","type":"text","nn":false,"pk":false,"uq":false,"fk":"cities.city_id","enum":null,"note":""},{"name":"destination_city_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"cities.city_id","enum":null,"note":""},{"name":"start_date","type":"date","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Rule R4: zoneless calendar date."},{"name":"end_date","type":"date","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"party_size","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"adults","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"children","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"trip_type","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"traveller_type","note":""},{"name":"is_group_trip","type":"bool","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"PS-11 / PS-08 filter."},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"trip_status","note":""},{"name":"home_currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":""},{"name":"notes","type":"text","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"created_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":600},{"name":"itineraries","tier":1,"domain":"Trip & itinerary","pack":"","rows":600,"prefix":"itn","purpose":"A versioned plan belonging to a trip. version is what makes PS-11's conflict handling tractable.","serves":[],"unique":null,"checks":[],"columns":[{"name":"itinerary_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"itn_ prefixed."},{"name":"trip_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"trips.trip_id","enum":null,"note":""},{"name":"name","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"version","type":"int","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Monotonic per itinerary."},{"name":"is_active","type":"bool","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Exactly one active version per trip."},{"name":"generated_by","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"item_source","note":"Which subsystem produced this version."},{"name":"total_cost","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"sum of item costs, half-up at the end."},{"name":"currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":""},{"name":"total_duration_minutes","type":"int","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"total_carbon_kg","type":"decimal(10,3)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"APS-09 objective."},{"name":"optimizer_weights","type":"text","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":"JSON string: {cost, time, carbon} weights that produced it."},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"record_status","note":""},{"name":"created_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":803},{"name":"inventory_calendar","tier":1,"domain":"Availability & pricing","pack":"","rows":15000,"prefix":"inv","purpose":"Entity x date availability with a database-level no-oversell CHECK. Deliberately scarce units so APS-05's load test has something to defend.","serves":[],"unique":["entity_type","entity_id","for_date"],"checks":["booked_units + held_units <= total_units"],"columns":[{"name":"inventory_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"inv_ prefixed."},{"name":"entity_type","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"inventory_entity_type","note":""},{"name":"entity_id","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"room_type_id or fare_id."},{"name":"for_date","type":"date","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"total_units","type":"int","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"booked_units","type":"int","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"held_units","type":"int","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"price","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"the price for that date."},{"name":"currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":""},{"name":"min_stay_nights","type":"smallint","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"closed_to_arrival","type":"bool","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":15030},{"name":"holds","tier":1,"domain":"Availability & pricing","pack":"","rows":500,"prefix":"hld","purpose":"TTL reservation with an idempotency key. Expired and released holds are retained (R8) because that history is what makes the demo interesting.","serves":[],"unique":null,"checks":[],"columns":[{"name":"hold_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"hld_ prefixed."},{"name":"inventory_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"inventory_calendar.inventory_id","enum":null,"note":""},{"name":"user_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"users.user_id","enum":null,"note":""},{"name":"units","type":"int","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"idempotency_key","type":"text","nn":true,"pk":false,"uq":true,"fk":null,"enum":null,"note":"APS-05 \u2014 a retried request must never double-book."},{"name":"created_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"expires_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"TTL."},{"name":"released_at","type":"timestamptz","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"booking_id","type":"text","nn":false,"pk":false,"uq":false,"fk":"bookings.booking_id","enum":null,"note":"Set when the hold converts."},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"hold_status","note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":496},{"name":"bookings","tier":1,"domain":"Booking & money","pack":"","rows":2000,"prefix":"bkg","purpose":"The order header \u2014 where inventory, payment and itinerary meet. Idempotency key is mandatory, not optional.","serves":[],"unique":null,"checks":[],"columns":[{"name":"booking_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"bkg_ prefixed."},{"name":"user_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"users.user_id","enum":null,"note":""},{"name":"trip_id","type":"text","nn":false,"pk":false,"uq":false,"fk":"trips.trip_id","enum":null,"note":"Null for standalone bookings."},{"name":"itinerary_id","type":"text","nn":false,"pk":false,"uq":false,"fk":"itineraries.itinerary_id","enum":null,"note":""},{"name":"booking_reference","type":"text","nn":true,"pk":false,"uq":true,"fk":null,"enum":null,"note":"Human-quotable 6-char reference."},{"name":"channel","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"channel","note":""},{"name":"total_amount","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"must equal the sum of booking_items."},{"name":"currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":""},{"name":"tax_amount","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"idempotency_key","type":"text","nn":true,"pk":false,"uq":true,"fk":null,"enum":null,"note":"APS-05 \u2014 retried requests resolve to this same row."},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"booking_status","note":""},{"name":"confirmed_at","type":"timestamptz","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"cancelled_at","type":"timestamptz","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"cancellation_reason","type":"text","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"created_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":1996},{"name":"booking_items","tier":1,"domain":"Booking & money","pack":"","rows":2800,"prefix":"bit","purpose":"Line items, so a multi-item booking can be partially compensated \u2014 which is the whole point of APS-05's saga.","serves":[],"unique":null,"checks":[],"columns":[{"name":"booking_item_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"bit_ prefixed."},{"name":"booking_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"bookings.booking_id","enum":null,"note":""},{"name":"entity_type","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"entity_type","note":""},{"name":"entity_id","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"inventory_id","type":"text","nn":false,"pk":false,"uq":false,"fk":"inventory_calendar.inventory_id","enum":null,"note":""},{"name":"title","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"for_date","type":"date","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"units","type":"int","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"unit_price","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"D3."},{"name":"line_total","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"units x unit_price, half-up."},{"name":"currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":""},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"booking_item_status","note":""},{"name":"compensated_at","type":"timestamptz","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Set when the saga rolls this line back."},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":2669},{"name":"payments","tier":2,"domain":"Booking & money","pack":"","rows":2000,"prefix":"pay","purpose":"Mock payment records \u2014 authorised and captured amounts held separately so a partial capture is representable.","serves":[],"unique":null,"checks":[],"columns":[{"name":"payment_id","type":"text","nn":true,"pk":true,"uq":false,"fk":null,"enum":null,"note":"pay_ prefixed."},{"name":"booking_id","type":"text","nn":true,"pk":false,"uq":false,"fk":"bookings.booking_id","enum":null,"note":""},{"name":"method","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"payment_method","note":""},{"name":"status","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":"payment_status","note":""},{"name":"authorised_amount","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"D3."},{"name":"captured_amount","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"refunded_amount","type":"decimal(12,2)","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"currency","type":"char(3)","nn":true,"pk":false,"uq":false,"fk":"currencies.iso4217","enum":null,"note":""},{"name":"gateway_reference","type":"text","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":"Synthetic mock reference."},{"name":"idempotency_key","type":"text","nn":true,"pk":false,"uq":true,"fk":null,"enum":null,"note":""},{"name":"failure_code","type":"text","nn":false,"pk":false,"uq":false,"fk":null,"enum":"error_code","note":""},{"name":"authorised_at","type":"timestamptz","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"captured_at","type":"timestamptz","nn":false,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"created_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""},{"name":"updated_at","type":"timestamptz","nn":true,"pk":false,"uq":false,"fk":null,"enum":null,"note":""}],"actual_rows":1996}],"edges":[{"from":"countries","from_col":"default_currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"cities","from_col":"country_id","to":"countries","to_col":"country_id","optional":false},{"from":"cities","from_col":"primary_language","to":"languages","to_col":"bcp47","optional":false},{"from":"airports","from_col":"city_id","to":"cities","to_col":"city_id","optional":false},{"from":"airlines","from_col":"country_id","to":"countries","to_col":"country_id","optional":false},{"from":"fx_rates","from_col":"base_currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"fx_rates","from_col":"quote_currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"users","from_col":"home_city_id","to":"cities","to_col":"city_id","optional":false},{"from":"users","from_col":"home_currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"users","from_col":"locale","to":"languages","to_col":"bcp47","optional":false},{"from":"hotels","from_col":"city_id","to":"cities","to_col":"city_id","optional":false},{"from":"hotels","from_col":"base_currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"hotel_room_types","from_col":"hotel_id","to":"hotels","to_col":"hotel_id","optional":false},{"from":"hotel_room_types","from_col":"currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"hotel_rate_plans","from_col":"room_type_id","to":"hotel_room_types","to_col":"room_type_id","optional":false},{"from":"hotel_rate_plans","from_col":"currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"flights","from_col":"airline_id","to":"airlines","to_col":"airline_id","optional":false},{"from":"flights","from_col":"origin_airport_id","to":"airports","to_col":"airport_id","optional":false},{"from":"flights","from_col":"dest_airport_id","to":"airports","to_col":"airport_id","optional":false},{"from":"flight_fares","from_col":"flight_id","to":"flights","to_col":"flight_id","optional":false},{"from":"flight_fares","from_col":"currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"trips","from_col":"owner_user_id","to":"users","to_col":"user_id","optional":false},{"from":"trips","from_col":"origin_city_id","to":"cities","to_col":"city_id","optional":true},{"from":"trips","from_col":"destination_city_id","to":"cities","to_col":"city_id","optional":false},{"from":"trips","from_col":"home_currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"itineraries","from_col":"trip_id","to":"trips","to_col":"trip_id","optional":false},{"from":"itineraries","from_col":"currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"inventory_calendar","from_col":"currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"holds","from_col":"inventory_id","to":"inventory_calendar","to_col":"inventory_id","optional":false},{"from":"holds","from_col":"user_id","to":"users","to_col":"user_id","optional":false},{"from":"holds","from_col":"booking_id","to":"bookings","to_col":"booking_id","optional":true},{"from":"bookings","from_col":"user_id","to":"users","to_col":"user_id","optional":false},{"from":"bookings","from_col":"trip_id","to":"trips","to_col":"trip_id","optional":true},{"from":"bookings","from_col":"itinerary_id","to":"itineraries","to_col":"itinerary_id","optional":true},{"from":"bookings","from_col":"currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"booking_items","from_col":"booking_id","to":"bookings","to_col":"booking_id","optional":false},{"from":"booking_items","from_col":"inventory_id","to":"inventory_calendar","to_col":"inventory_id","optional":true},{"from":"booking_items","from_col":"currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"payments","from_col":"booking_id","to":"bookings","to_col":"booking_id","optional":false},{"from":"payments","from_col":"currency","to":"currencies","to_col":"iso4217","optional":false},{"from":"inventory_calendar","from_col":"entity_id","to":"__supply_reference__","to_col":"(entity_type, entity_id)","optional":true,"polymorphic":true,"label":"room_type / flight_fare"},{"from":"booking_items","from_col":"entity_id","to":"__supply_reference__","to_col":"(entity_type, entity_id)","optional":true,"polymorphic":true,"label":"supply reference"}],"statement_map":{},"spine":["users","trips","itineraries","bookings","inventory_calendar","currencies"]};
+const DOMC = {
+ "Reference & geography":"#64748b","Identity & preference":"#7c3aed",
+ "Supply & catalogue":"#0891b2","Trip & itinerary":"#ea580c",
+ "Availability & pricing":"#b45309","Booking & money":"#15803d",
+ "Content, knowledge & safety":"#dc2626","Signals & evaluation":"#be185d",
+ "XR & immersive":"#4f46e5"};
+const T = MODEL.tables, byName = {}; T.forEach(t=>byName[t.name]=t);
+const EDGES = MODEL.edges.filter(e=>e.to!=="__supply_reference__" && e.from!==e.to);
+const POLY  = MODEL.edges.filter(e=>e.to==="__supply_reference__");
+const SPINE = new Set(MODEL.spine);
+const SCOPED = !!MODEL.scoped;
+const tierWord = t => SCOPED ? (t === 1 ? "core" : "supporting") : ("Tier " + t);
+
+document.getElementById("s-tables").textContent = T.length;
+document.getElementById("s-cols").textContent = T.reduce((a,t)=>a+t.columns.length,0);
+document.getElementById("s-rows").textContent =
+  T.reduce((a,t)=>a+(t.actual_rows||0),0).toLocaleString();
+document.getElementById("s-edges").textContent = EDGES.length + POLY.length;
+
+/* ---------------- deterministic column layout ---------------- */
+const ALLCOLS = [
+  {label:"Reference & identity", domains:["Reference & geography","Identity & preference"]},
+  {label:"Supply & catalogue",   domains:["Supply & catalogue"]},
+  {label:"Trip spine · pricing", domains:["Trip & itinerary","Availability & pricing"]},
+  {label:"Money · content",      domains:["Booking & money","Content, knowledge & safety"]},
+  {label:"Signals · XR",         domains:["Signals & evaluation","XR & immersive"]}
+];
+const has = d => T.some(t => t.domain === d);
+const COLS = ALLCOLS.map(c => ({label:c.label, domains:c.domains.filter(has)}))
+                    .filter(c => c.domains.length);
+const doms=[]; COLS.forEach(c=>c.domains.forEach(d=>doms.push(d)));
+const NW=204, NH=34, VGAP=13, GHEAD=30, GGAP=34, CX=286;
+const N=[], groups=[];
+COLS.forEach((col,ci)=>{
+  let y=0;
+  col.domains.forEach(dom=>{
+    const ts=T.filter(t=>t.domain===dom);
+    const top=y;
+    y+=GHEAD;
+    ts.forEach(t=>{ N.push({t, x:ci*CX+NW/2, y:y+NH/2, w:NW, h:NH}); y+=NH+VGAP; });
+    groups.push({dom, x:ci*CX-12, y:top-10, w:NW+24, h:(y-VGAP)-top+20, label:dom, count:ts.length});
+    y+=GGAP;
+  });
+});
+/* vertically centre each column */
+const colH={};
+groups.forEach(g=>{const ci=Math.round((g.x+12)/CX); colH[ci]=Math.max(colH[ci]||0,g.y+g.h);});
+const maxH=Math.max(...Object.values(colH));
+function shiftOf(ci){return (maxH-colH[ci])/2;}
+N.forEach(n=>{const ci=Math.round((n.x-NW/2)/CX); n.y+=shiftOf(ci);});
+groups.forEach(g=>{const ci=Math.round((g.x+12)/CX); g.y+=shiftOf(ci);});
+const idx={}; N.forEach(n=>idx[n.t.name]=n);
+const links = EDGES.map(e=>({s:idx[e.from], t:idx[e.to]})).filter(l=>l.s&&l.t);
+
+/* ---------------- render ---------------- */
+const svg=document.getElementById("svg"), vp=document.getElementById("viewport");
+const gE=document.getElementById("edges"), gN=document.getElementById("nodes");
+const NS="http://www.w3.org/2000/svg";
+function el(n,a){const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;}
+
+const gG=el("g",{}); gE.parentNode.insertBefore(gG,gE);
+groups.forEach(g=>{
+  const c=DOMC[g.dom]||"#666";
+  gG.appendChild(el("rect",{x:g.x,y:g.y,width:g.w,height:g.h,rx:12,
+     fill:c,"fill-opacity":.038,stroke:c,"stroke-opacity":.22,"stroke-width":1}));
+  const t=el("text",{x:g.x+13,y:g.y+19,fill:c,"font-size":11.5,"font-weight":700,
+     "letter-spacing":".02em"});
+  t.textContent=g.label.toUpperCase()+"  ("+g.count+")";
+  gG.appendChild(t);
+});
+
+const edgeEls=[];
+links.forEach(l=>{
+  const p=el("path",{class:"edge"});
+  p.dataset.from=l.s.t.name; p.dataset.to=l.t.t.name;
+  gE.appendChild(p); edgeEls.push({p,l});
+});
+function drawEdges(){edgeEls.forEach(({p,l})=>{
+  const rightward = l.t.x >= l.s.x;
+  const x1=l.s.x+(rightward?l.s.w/2:-l.s.w/2), y1=l.s.y;
+  const x2=l.t.x+(rightward?-l.t.w/2:l.t.w/2), y2=l.t.y;
+  const dx=Math.max(46,Math.abs(x2-x1)*0.55)*(rightward?1:-1);
+  p.setAttribute("d",`M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`);});}
+drawEdges();
+
+const nodeEls={};
+N.forEach(n=>{
+  const g=el("g",{class:"node"+(n.t.tier===1?" tier1":""),transform:`translate(${n.x},${n.y})`});
+  const c=DOMC[n.t.domain]||"#666";
+  const r=el("rect",{x:-n.w/2,y:-n.h/2,width:n.w,height:n.h,rx:7,stroke:c,
+    fill:n.t.tier===1?"#fff":"#fdfcfb"});
+  const bar=el("rect",{x:-n.w/2,y:-n.h/2,width:4,height:n.h,rx:2,fill:c,stroke:"none"});
+  const t1=el("text",{x:-n.w/2+13,y:-2,fill:"#1b1917","font-size":12}); t1.textContent=n.t.name;
+  const t2=el("text",{class:"rows",x:-n.w/2+13,y:11});
+  t2.textContent=(n.t.actual_rows||0).toLocaleString()+" rows · "+tierWord(n.t.tier);
+  g.append(r,bar,t1,t2); gN.appendChild(g); nodeEls[n.t.name]=g;
+  g.addEventListener("click",ev=>{ev.stopPropagation(); select(n.t.name);});
+  g.addEventListener("mouseenter",()=>hover(n.t.name));
+  g.addEventListener("mouseleave",()=>hover(null));
+  let dragging=false,sx,sy;
+  g.addEventListener("pointerdown",ev=>{ev.stopPropagation();dragging=true;
+    g.setPointerCapture(ev.pointerId);sx=ev.clientX;sy=ev.clientY;});
+  g.addEventListener("pointermove",ev=>{if(!dragging)return;
+    n.x+=(ev.clientX-sx)/view.k; n.y+=(ev.clientY-sy)/view.k; sx=ev.clientX; sy=ev.clientY;
+    g.setAttribute("transform",`translate(${n.x},${n.y})`); drawEdges();});
+  g.addEventListener("pointerup",ev=>{dragging=false;g.releasePointerCapture(ev.pointerId);});
+});
+
+/* ---------------- pan / zoom ---------------- */
+const view={x:0,y:0,k:1};
+function apply(){vp.setAttribute("transform",`translate(${view.x},${view.y}) scale(${view.k})`);}
+function fit(){
+  const xs=N.map(n=>n.x), ys=N.map(n=>n.y);
+  const minX=Math.min(...xs)-150,maxX=Math.max(...xs)+150;
+  const minY=Math.min(...ys)-60, maxY=Math.max(...ys)+40;
+  const r=svg.getBoundingClientRect();
+  view.k=Math.min(r.width/(maxX-minX), r.height/(maxY-minY))*0.99;
+  view.x=r.width/2-(minX+maxX)/2*view.k; view.y=r.height/2-(minY+maxY)/2*view.k; apply();
+}
+let pan=false,px,py;
+svg.addEventListener("pointerdown",e=>{pan=true;px=e.clientX;py=e.clientY;svg.classList.add("drag");});
+svg.addEventListener("pointermove",e=>{if(!pan)return;view.x+=e.clientX-px;view.y+=e.clientY-py;
+  px=e.clientX;py=e.clientY;apply();});
+addEventListener("pointerup",()=>{pan=false;svg.classList.remove("drag");});
+svg.addEventListener("wheel",e=>{e.preventDefault();
+  const r=svg.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  const f=e.deltaY<0?1.12:1/1.12, nk=Math.max(0.15,Math.min(3.2,view.k*f));
+  view.x=mx-(mx-view.x)*(nk/view.k); view.y=my-(my-view.y)*(nk/view.k); view.k=nk; apply();},
+  {passive:false});
+zin.onclick=()=>{view.k=Math.min(3.2,view.k*1.25);apply();};
+zout.onclick=()=>{view.k=Math.max(0.15,view.k/1.25);apply();};
+zfit.onclick=fit;
+addEventListener("resize",fit);
+setTimeout(fit,30);
+
+/* ---------------- filtering ---------------- */
+let filterPS="", filterTier=null, filterSpine=false, offDomains=new Set(), selected=null;
+function visible(t){
+  if(offDomains.has(t.domain)) return false;
+  if(filterTier && t.tier!==filterTier) return false;
+  if(filterSpine && !SPINE.has(t.name)) return false;
+  if(filterPS){ const s=MODEL.statement_map[filterPS];
+    if(!s.tables.includes(t.name)) return false; }
+  return true;
+}
+function refresh(){
+  T.forEach(t=>nodeEls[t.name].classList.toggle("dim",!visible(t)));
+  edgeEls.forEach(({p,l})=>p.classList.toggle("dim",!(visible(l.s.t)&&visible(l.t.t))));
+  if(selected) hilite(selected);
+}
+function hilite(name){
+  const any = name && name !== "\u00a7";
+  gE.classList.toggle("focus", !!any);
+  edgeEls.forEach(({p,l})=>p.classList.toggle("hi", l.s.t.name===name||l.t.t.name===name));
+}
+function hover(name){ if(!name){ hilite(selected||"§"); return;} hilite(name); }
+
+/* ---------------- detail pane ---------------- */
+const pane=document.getElementById("pane");
+function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+function select(name){
+  selected=name; T.forEach(t=>nodeEls[t.name].classList.toggle("sel",t.name===name));
+  hilite(name); tabSel("t"); renderTable(name);
+  const n=idx[name]; const r=svg.getBoundingClientRect();
+  view.x=r.width/2-n.x*view.k; view.y=r.height/2-n.y*view.k; apply();
+}
+function renderTable(name){
+  const t=byName[name]; if(!t){pane.innerHTML="";return;}
+  const c=DOMC[t.domain];
+  const inc=EDGES.filter(e=>e.to===name), out=EDGES.filter(e=>e.from===name);
+  const isPoly=POLY.some(p=>p.from===name);
+  let h=`<div class="pad"><h3>${t.name}</h3>
+   <div class="meta">
+     <span class="badge" style="border-color:${c};color:${c}">${esc(t.domain)}</span>
+     <span class="badge">${SCOPED ? (t.tier===1?"core table":"supporting table")
+                                 : ("Tier "+t.tier+(t.tier===1?" · mandatory":""))}</span>
+     ${t.pack?`<span class="badge">pack <code>${t.pack}</code></span>`:""}
+     <span class="badge">${(t.actual_rows||0).toLocaleString()} rows</span>
+     <span class="badge">id <code>${t.prefix}_</code></span>
+     ${SPINE.has(name)?'<span class="badge" style="border-color:#1f4ed8;color:#1f4ed8">integration spine</span>':''}
+   </div>
+   <p class="purpose">${esc(t.purpose)}</p>
+   ${(t.serves&&t.serves.length)?`<p class="note" style="margin-top:8px"><b>Serves:</b> ${t.serves.join(", ")}</p>`:""}
+   ${t.unique?`<p class="note"><b>Composite unique:</b> <code>(${t.unique.join(", ")})</code></p>`:""}
+   ${(t.checks||[]).map(x=>`<p class="note"><b>Check:</b> <code>${esc(x)}</code></p>`).join("")}
+   ${isPoly?'<p class="note"><b>Polymorphic:</b> this table points at any supply row through <code>(entity_type, entity_id)</code> rather than a typed foreign key.</p>':""}
+   </div>
+   <table class="cols"><thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead><tbody>`;
+  t.columns.forEach(col=>{
+    let flags=[];
+    if(col.pk) flags.push('<span class="k">PK</span>');
+    if(col.uq&&!col.pk) flags.push('<span class="k">UNIQUE</span>');
+    if(col.nn&&!col.pk) flags.push('<span class="nn">NOT NULL</span>');
+    if(col.enum) flags.push(`<span class="nn">enum</span> <code>${col.enum}</code>`);
+    let fk = col.fk?`<div class="note">→ <span class="fk" data-go="${col.fk.split(".")[0]}">${col.fk}</span></div>`:"";
+    h+=`<tr><td><code>${col.name}</code>${col.pk?' 🔑':''}</td>
+        <td><code>${esc(col.type)}</code><div class="note">${flags.join(" · ")}</div></td>
+        <td>${esc(col.note)}${fk}</td></tr>`;
+  });
+  h+=`</tbody></table><div class="pad">`;
+  if(out.length) h+=`<h2>References</h2><p class="note">`+
+    [...new Set(out.map(e=>e.to))].map(x=>`<span class="fk" data-go="${x}">${x}</span>`).join(" · ")+`</p>`;
+  if(inc.length) h+=`<h2>Referenced by</h2><p class="note">`+
+    [...new Set(inc.map(e=>e.from))].map(x=>`<span class="fk" data-go="${x}">${x}</span>`).join(" · ")+`</p>`;
+  h+=`</div>`;
+  pane.innerHTML=h;
+  pane.querySelectorAll("[data-go]").forEach(a=>a.onclick=()=>select(a.dataset.go));
+}
+function renderRules(){
+  pane.innerHTML=`<div class="pad">
+  <h3 style="font-family:inherit;font-size:15px">The eight rules</h3>
+  <p class="note">These apply to the fields that came with your data. They fit on one screen deliberately — a rule nobody can
+  remember is a rule nobody follows.</p>
+  <table class="cols"><tbody>
+  <tr><td><b>R1</b></td><td>Additive only. Add columns, tables and stores freely. Never rename, drop or repurpose a canonical field.</td></tr>
+  <tr><td><b>R2</b></td><td>IDs are opaque prefixed strings — <code>htl_a91f3c</code>. Never integers, never parsed, never re-issued.</td></tr>
+  <tr><td><b>R3</b></td><td>Money is a pair: fixed-point decimal, exactly 2 places, plus an ISO-4217 code. Never a float. JSON carries the amount as a <i>string</i>.</td></tr>
+  <tr><td><b>R4</b></td><td>Time is UTC ISO-8601 with an offset. Instants end <code>_at</code>; zoneless calendar dates end <code>_date</code>.</td></tr>
+  <tr><td><b>R5</b></td><td>Enums are lowercase snake_case, defined once in <code>enums.json</code>.</td></tr>
+  <tr><td><b>R6</b></td><td>Language is BCP-47 — <code>ta</code>, <code>hi</code>, <code>en-IN</code>. Never "Tamil".</td></tr>
+  <tr><td><b>R7</b></td><td>Geography is WGS-84 decimal degrees to 6dp. A row has both lat and lng, or neither.</td></tr>
+  <tr><td><b>R8</b></td><td>Nothing is hard-deleted. Every mutable entity carries <code>status</code> and <code>updated_at</code>.</td></tr>
+  </tbody></table>
+  <h2>Money, in full</h2>
+  <p class="note">The danger is not the storage type. It is the moment a value passes through a
+  float on its way somewhere — and a naive CSV parser does exactly that.</p>
+  <table class="cols"><tbody>
+  <tr><td>Database</td><td><code>NUMERIC(12,2)</code>. Never FLOAT/REAL/DOUBLE. In <code>travel.db</code> money is <code>TEXT</code>, because SQLite's NUMERIC affinity would turn <code>8500.00</code> into the float <code>8500.0</code>.</td></tr>
+  <tr><td>Code</td><td><code>BigDecimal</code> / <code>decimal.Decimal</code> / a JS decimal library.</td></tr>
+  <tr><td>Wire</td><td><code>{"amount":"8500.00","currency":"INR"}</code> — amount as a string.</td></tr>
+  <tr><td>Naming</td><td><code>amount</code> + <code>currency</code>. No <code>_inr</code> or <code>_paise</code> suffixes.</td></tr>
+  <tr><td>Rounding</td><td>Half-up to 2 places, applied as late as possible.</td></tr>
+  <tr><td>Splitting</td><td>Largest remainder, so the parts sum exactly: 1000 ÷ 3 = 333.34 + 333.33 + 333.33.</td></tr>
+  <tr><td>0/3-decimal currencies</td><td>JPY, KRW, KWD, BHD are still stored as 2-place decimals. The true exponent is in <code>currencies.minor_unit_exponent</code>, for display only.</td></tr>
+  <tr><td>FX</td><td>Convert through <code>fx_rates</code> on a named date. Keep the original amount and currency alongside — never overwrite.</td></tr>
+  </tbody></table></div>`;
+}
+function renderPacks(){
+  let h=`<div class="pad"><h3 style="font-family:inherit;font-size:15px">Download packs</h3>
+  <p class="note">Everyone takes <code>travel-core</code>. Take the add-on packs your statement
+  needs and nothing else.</p></div><table class="cols"><thead><tr><th>Pack</th><th>Tables</th><th>Rows</th></tr></thead><tbody>`;
+  Object.entries(MODEL.packs).forEach(([p,desc])=>{
+    const ts=T.filter(t=>t.pack===p);
+    h+=`<tr><td><code>${p}</code><div class="note">${esc(desc)}</div></td>
+        <td>${ts.length}<div class="note">${ts.map(t=>t.name).join(", ")}</div></td>
+        <td>${ts.reduce((a,t)=>a+(t.actual_rows||0),0).toLocaleString()}</td></tr>`;
+  });
+  pane.innerHTML=h+`</tbody></table>`;
+}
+function tabSel(which){
+  ({t:tabT,r:tabR,p:tabP});
+  document.getElementById("tab-t").setAttribute("aria-selected",which==="t");
+  document.getElementById("tab-r").setAttribute("aria-selected",which==="r");
+  document.getElementById("tab-p").setAttribute("aria-selected",which==="p");
+}
+const tabT=document.getElementById("tab-t"), tabR=document.getElementById("tab-r"),
+      tabP=document.getElementById("tab-p");
+tabT.onclick=()=>{tabSel("t"); selected?renderTable(selected):pane.innerHTML=
+  '<div class="empty">Click a table in the diagram, or search for one on the left.</div>';};
+tabR.onclick=()=>{tabSel("r");renderRules();};
+tabP.onclick=()=>{tabSel("p");renderPacks();};
+
+/* ---------------- controls ---------------- */
+const legend=document.getElementById("legend");
+doms.forEach(d=>{
+  if(!T.some(t=>t.domain===d)) return;
+  const row=document.createElement("div");
+  row.innerHTML=`<span class="sw" style="background:${DOMC[d]}"></span><span>${d}</span>
+   <span style="margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums">
+   ${T.filter(t=>t.domain===d).length}</span>`;
+  row.onclick=()=>{offDomains.has(d)?offDomains.delete(d):offDomains.add(d);
+    row.classList.toggle("off",offDomains.has(d)); refresh();};
+  legend.appendChild(row);
+});
+document.querySelectorAll("#tierchips .chip").forEach(b=>{
+  b.onclick=()=>{
+    const on=b.getAttribute("aria-pressed")==="true";
+    document.querySelectorAll("#tierchips .chip").forEach(x=>x.setAttribute("aria-pressed","false"));
+    filterTier=null; filterSpine=false;
+    if(!on){ b.setAttribute("aria-pressed","true");
+      if(b.dataset.tier) filterTier=+b.dataset.tier; else filterSpine=true; }
+    refresh();
+  };
+});
+const sel=document.getElementById("ps"), psinfo=document.getElementById("psinfo");
+MODEL.statements.forEach(s=>{
+  const o=document.createElement("option"); o.value=s.id;
+  o.textContent=`${s.id} — ${s.title}`; sel.appendChild(o);});
+sel.onchange=()=>{
+  filterPS=sel.value; refresh();
+  if(!filterPS){psinfo.innerHTML="";return;}
+  const s=MODEL.statement_map[filterPS], st=MODEL.statements.find(x=>x.id===filterPS);
+  const core=s.tables.filter(n=>!byName[n].serves.includes("ALL"));
+  psinfo.innerHTML=`<div class="psbox"><b>${filterPS}</b> — ${esc(st.title)}
+    <p>${st.track} track · ${st.difficulty}${st.origin==="arvr"?" · AR/VR pack — bring your own XR device":""}</p>
+    <p><b>${core.length}</b> tables of its own, plus shared reference.</p>
+    <p><b>Packs:</b> ${s.packs.map(p=>`<code>${p}</code>`).join(", ")}</p></div>`;
+};
+const q=document.getElementById("q"), qres=document.getElementById("qres");
+q.oninput=()=>{
+  const v=q.value.trim().toLowerCase(); qres.innerHTML="";
+  if(v.length<2) return;
+  const hits=[];
+  T.forEach(t=>{
+    if(t.name.includes(v)) hits.push([t.name,"table"]);
+    t.columns.forEach(c=>{if(c.name.includes(v)) hits.push([t.name,c.name]);});
+  });
+  hits.slice(0,40).forEach(([tn,label])=>{
+    const d=document.createElement("div");
+    d.innerHTML = label==="table" ? `${tn}<small>table</small>` : `${tn}<small>.${label}</small>`;
+    d.onclick=()=>select(tn); qres.appendChild(d);});
+};
+if (MODEL.scoped) {
+  document.getElementById("psfilter").style.display = "none";
+  document.getElementById("tab-p").style.display = "none";
+  chip3.style.display = "none";
+  document.getElementById("hint").innerHTML =
+    "This diagram shows only the tables your problem statement needs. Click any table for its "
+    + "full field list. Solid lines are foreign keys; dashed lines are the polymorphic "
+    + "<code>(entity_type, entity_id)</code> reference. Drag to pan, scroll to zoom, drag a "
+    + "table to move it.";
+}
+tabT.onclick();
+</script></body></html>

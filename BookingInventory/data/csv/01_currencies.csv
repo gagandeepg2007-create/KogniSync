@@ -1,0 +1,26 @@
+currency_id,iso4217,name,symbol,minor_unit_exponent,display_locale,updated_at
+cur_cc42c78a,INR,Indian Rupee,₹,2,en-IN,2026-08-18T10:00:00+05:30
+cur_6494abb3,USD,US Dollar,$,2,en-US,2026-08-18T10:00:00+05:30
+cur_eda4cf32,EUR,Euro,€,2,de-DE,2026-08-18T10:00:00+05:30
+cur_d19b045a,GBP,Pound Sterling,£,2,en-GB,2026-08-18T10:00:00+05:30
+cur_7f75c5cf,AED,UAE Dirham,د.إ,2,ar-AE,2026-08-18T10:00:00+05:30
+cur_dfcd697f,SGD,Singapore Dollar,S$,2,en-SG,2026-08-18T10:00:00+05:30
+cur_8f244062,THB,Thai Baht,฿,2,th-TH,2026-08-18T10:00:00+05:30
+cur_5ce4983c,LKR,Sri Lankan Rupee,Rs,2,si-LK,2026-08-18T10:00:00+05:30
+cur_0482510a,NPR,Nepalese Rupee,Rs,2,ne-NP,2026-08-18T10:00:00+05:30
+cur_5e9c9d34,BTN,Bhutanese Ngultrum,Nu.,2,dz-BT,2026-08-18T10:00:00+05:30
+cur_b302e33b,MVR,Maldivian Rufiyaa,.ރ,2,dv-MV,2026-08-18T10:00:00+05:30
+cur_c6679096,JPY,Japanese Yen,¥,0,ja-JP,2026-08-18T10:00:00+05:30
+cur_4d019f2d,KRW,South Korean Won,₩,0,ko-KR,2026-08-18T10:00:00+05:30
+cur_43fcaadd,KWD,Kuwaiti Dinar,د.ك,3,ar-KW,2026-08-18T10:00:00+05:30
+cur_260f2ef4,BHD,Bahraini Dinar,.د.ب,3,ar-BH,2026-08-18T10:00:00+05:30
+cur_d4d4fb1c,AUD,Australian Dollar,A$,2,en-AU,2026-08-18T10:00:00+05:30
+cur_bb0a18cb,CAD,Canadian Dollar,C$,2,en-CA,2026-08-18T10:00:00+05:30
+cur_7fd544aa,CHF,Swiss Franc,CHF,2,de-CH,2026-08-18T10:00:00+05:30
+cur_03311d98,MYR,Malaysian Ringgit,RM,2,ms-MY,2026-08-18T10:00:00+05:30
+cur_ff838ffa,IDR,Indonesian Rupiah,Rp,2,id-ID,2026-08-18T10:00:00+05:30
+cur_e8783a63,VND,Vietnamese Dong,₫,0,vi-VN,2026-08-18T10:00:00+05:30
+cur_cfcb806c,CNY,Chinese Yuan,¥,2,zh-CN,2026-08-18T10:00:00+05:30
+cur_7c411816,QAR,Qatari Riyal,ر.ق,2,ar-QA,2026-08-18T10:00:00+05:30
+cur_4eed8119,SAR,Saudi Riyal,ر.س,2,ar-SA,2026-08-18T10:00:00+05:30
+cur_ccad042c,NZD,New Zealand Dollar,NZ$,2,en-NZ,2026-08-18T10:00:00+05:30

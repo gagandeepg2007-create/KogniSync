@@ -1,0 +1,27 @@
+language_id,bcp47,english_name,native_name,script,rtl,tts_supported,updated_at
+lng_982a6476,en-IN,English (India),English,Latn,0,1,2026-08-18T10:00:00+05:30
+lng_90b14a72,en-GB,English (UK),English,Latn,0,1,2026-08-18T10:00:00+05:30
+lng_7a6fe5b9,hi,Hindi,हिन्दी,Deva,0,1,2026-08-18T10:00:00+05:30
+lng_599bbd0b,ta,Tamil,தமிழ்,Taml,0,1,2026-08-18T10:00:00+05:30
+lng_b0a8d952,te,Telugu,తెలుగు,Telu,0,1,2026-08-18T10:00:00+05:30
+lng_776b49e1,kn,Kannada,ಕನ್ನಡ,Knda,0,1,2026-08-18T10:00:00+05:30
+lng_4e732c83,ml,Malayalam,മലയാളം,Mlym,0,1,2026-08-18T10:00:00+05:30
+lng_9983741a,mr,Marathi,मराठी,Deva,0,1,2026-08-18T10:00:00+05:30
+lng_e246ebda,bn,Bengali,বাংলা,Beng,0,1,2026-08-18T10:00:00+05:30
+lng_fab6f47c,gu,Gujarati,ગુજરાતી,Gujr,0,1,2026-08-18T10:00:00+05:30
+lng_2c0147f3,pa,Punjabi,ਪੰਜਾਬੀ,Guru,0,1,2026-08-18T10:00:00+05:30
+lng_27985744,or,Odia,ଓଡ଼ିଆ,Orya,0,0,2026-08-18T10:00:00+05:30
+lng_5f4f437e,as,Assamese,অসমীয়া,Beng,0,0,2026-08-18T10:00:00+05:30
+lng_a25ce7eb,ur,Urdu,اردو,Arab,1,1,2026-08-18T10:00:00+05:30
+lng_5c34a3a2,si,Sinhala,සිංහල,Sinh,0,0,2026-08-18T10:00:00+05:30
+lng_090b7ffc,ne,Nepali,नेपाली,Deva,0,0,2026-08-18T10:00:00+05:30
+lng_812bd38e,ar,Arabic,العربية,Arab,1,1,2026-08-18T10:00:00+05:30
+lng_80b09d04,fr,French,Français,Latn,0,1,2026-08-18T10:00:00+05:30
+lng_60b2be08,de,German,Deutsch,Latn,0,1,2026-08-18T10:00:00+05:30
+lng_18b3f2a1,es,Spanish,Español,Latn,0,1,2026-08-18T10:00:00+05:30
+lng_23f38733,ja,Japanese,日本語,Jpan,0,1,2026-08-18T10:00:00+05:30
+lng_2da8bf24,ko,Korean,한국어,Kore,0,1,2026-08-18T10:00:00+05:30
+lng_df1375ad,th,Thai,ไทย,Thai,0,1,2026-08-18T10:00:00+05:30
+lng_4415273f,zh,Chinese,中文,Hans,0,1,2026-08-18T10:00:00+05:30
+lng_a627157e,ms,Malay,Bahasa Melayu,Latn,0,1,2026-08-18T10:00:00+05:30
+lng_8d750fd6,id,Indonesian,Bahasa Indonesia,Latn,0,1,2026-08-18T10:00:00+05:30

@@ -1,0 +1,31 @@
+country_id,iso2,iso3,name,default_currency,calling_code,region,updated_at
+cnt_ff5051ed,IN,IND,India,INR,+91,Southern Asia,2026-08-18T10:00:00+05:30
+cnt_b8092331,LK,LKA,Sri Lanka,LKR,+94,Southern Asia,2026-08-18T10:00:00+05:30
+cnt_85022b8d,NP,NPL,Nepal,NPR,+977,Southern Asia,2026-08-18T10:00:00+05:30
+cnt_e0e8c591,BT,BTN,Bhutan,BTN,+975,Southern Asia,2026-08-18T10:00:00+05:30
+cnt_d765968a,MV,MDV,Maldives,MVR,+960,Southern Asia,2026-08-18T10:00:00+05:30
+cnt_442ba9c5,AE,ARE,United Arab Emirates,AED,+971,Western Asia,2026-08-18T10:00:00+05:30
+cnt_66747322,QA,QAT,Qatar,QAR,+974,Western Asia,2026-08-18T10:00:00+05:30
+cnt_eb2d6b6e,SA,SAU,Saudi Arabia,SAR,+966,Western Asia,2026-08-18T10:00:00+05:30
+cnt_968dde84,KW,KWT,Kuwait,KWD,+965,Western Asia,2026-08-18T10:00:00+05:30
+cnt_87dd6095,BH,BHR,Bahrain,BHD,+973,Western Asia,2026-08-18T10:00:00+05:30
+cnt_316b34ed,SG,SGP,Singapore,SGD,+65,South-eastern Asia,2026-08-18T10:00:00+05:30
+cnt_26b73083,TH,THA,Thailand,THB,+66,South-eastern Asia,2026-08-18T10:00:00+05:30
+cnt_dacecf42,MY,MYS,Malaysia,MYR,+60,South-eastern Asia,2026-08-18T10:00:00+05:30
+cnt_3d8714fa,ID,IDN,Indonesia,IDR,+62,South-eastern Asia,2026-08-18T10:00:00+05:30
+cnt_09cc28b5,VN,VNM,Viet Nam,VND,+84,South-eastern Asia,2026-08-18T10:00:00+05:30
+cnt_28707a4d,JP,JPN,Japan,JPY,+81,Eastern Asia,2026-08-18T10:00:00+05:30
+cnt_b34d2ba5,KR,KOR,South Korea,KRW,+82,Eastern Asia,2026-08-18T10:00:00+05:30
+cnt_811a9fee,CN,CHN,China,CNY,+86,Eastern Asia,2026-08-18T10:00:00+05:30
+cnt_ff87fe81,GB,GBR,United Kingdom,GBP,+44,Northern Europe,2026-08-18T10:00:00+05:30
+cnt_b19984f4,DE,DEU,Germany,EUR,+49,Western Europe,2026-08-18T10:00:00+05:30
+cnt_5576825b,FR,FRA,France,EUR,+33,Western Europe,2026-08-18T10:00:00+05:30
+cnt_0ebfe60a,IT,ITA,Italy,EUR,+39,Southern Europe,2026-08-18T10:00:00+05:30
+cnt_cb3b4123,ES,ESP,Spain,EUR,+34,Southern Europe,2026-08-18T10:00:00+05:30
+cnt_93e73c95,CH,CHE,Switzerland,CHF,+41,Western Europe,2026-08-18T10:00:00+05:30
+cnt_977ee116,US,USA,United States,USD,+1,Northern America,2026-08-18T10:00:00+05:30
+cnt_6dcf9887,CA,CAN,Canada,CAD,+1,Northern America,2026-08-18T10:00:00+05:30
+cnt_502f567c,AU,AUS,Australia,AUD,+61,Australia and New Zealand,2026-08-18T10:00:00+05:30
+cnt_aeffe755,NZ,NZL,New Zealand,NZD,+64,Australia and New Zealand,2026-08-18T10:00:00+05:30
+cnt_f0348ca4,MU,MUS,Mauritius,USD,+230,Eastern Africa,2026-08-18T10:00:00+05:30
+cnt_26c39383,SC,SYC,Seychelles,USD,+248,Eastern Africa,2026-08-18T10:00:00+05:30

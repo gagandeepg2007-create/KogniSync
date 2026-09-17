@@ -1,0 +1,513 @@
+{
+  "version": "1.1.0-rc1",
+  "note": "R5 \u2014 single source of truth for every enum. Values are lowercase snake_case. validate_conformance.py rejects anything outside these lists.",
+  "enums": {
+    "entity_type": [
+      "hotel",
+      "room_type",
+      "rate_plan",
+      "flight",
+      "flight_fare",
+      "poi",
+      "package",
+      "package_component",
+      "guide",
+      "transfer",
+      "event",
+      "xr_scene"
+    ],
+    "record_status": [
+      "active",
+      "inactive",
+      "archived",
+      "draft"
+    ],
+    "property_type": [
+      "hotel",
+      "resort",
+      "homestay",
+      "hostel",
+      "apartment",
+      "boutique",
+      "heritage",
+      "guesthouse"
+    ],
+    "bed_config": [
+      "single",
+      "twin",
+      "double",
+      "queen",
+      "king",
+      "bunk",
+      "twin_double"
+    ],
+    "rate_plan_type": [
+      "refundable",
+      "non_refundable",
+      "breakfast_included",
+      "half_board",
+      "full_board",
+      "long_stay"
+    ],
+    "amenity_group": [
+      "connectivity",
+      "wellness",
+      "food_beverage",
+      "family",
+      "accessibility",
+      "transport",
+      "business",
+      "outdoor"
+    ],
+    "media_role": [
+      "hero",
+      "room",
+      "lobby",
+      "exterior",
+      "dining",
+      "pool",
+      "bathroom",
+      "view",
+      "landmark",
+      "menu",
+      "sign",
+      "receipt"
+    ],
+    "traveller_type": [
+      "solo",
+      "couple",
+      "family",
+      "business",
+      "friends",
+      "senior",
+      "backpacker"
+    ],
+    "travel_style": [
+      "budget",
+      "comfort",
+      "luxury",
+      "adventure",
+      "slow",
+      "cultural",
+      "wellness"
+    ],
+    "budget_band": [
+      "shoestring",
+      "value",
+      "mid",
+      "premium",
+      "luxury"
+    ],
+    "user_segment": [
+      "heavy",
+      "light",
+      "cold_start"
+    ],
+    "cabin_class": [
+      "economy",
+      "premium_economy",
+      "business",
+      "first"
+    ],
+    "fare_class": [
+      "saver",
+      "flex",
+      "standard",
+      "corporate",
+      "promo"
+    ],
+    "poi_category": [
+      "heritage",
+      "nature",
+      "museum",
+      "religious",
+      "adventure",
+      "food",
+      "shopping",
+      "nightlife",
+      "beach",
+      "wildlife",
+      "wellness",
+      "viewpoint"
+    ],
+    "transport_mode": [
+      "walk",
+      "cycle",
+      "auto_rickshaw",
+      "cab",
+      "bus",
+      "metro",
+      "train",
+      "ferry",
+      "flight"
+    ],
+    "package_theme": [
+      "adventure",
+      "honeymoon",
+      "pilgrimage",
+      "family",
+      "heritage",
+      "wellness",
+      "wildlife",
+      "food_trail"
+    ],
+    "package_tier": [
+      "standard",
+      "deluxe",
+      "premium"
+    ],
+    "component_type": [
+      "hotel",
+      "flight",
+      "poi",
+      "transfer",
+      "guide",
+      "meal",
+      "insurance",
+      "entry_ticket"
+    ],
+    "guide_specialisation": [
+      "heritage",
+      "food",
+      "trekking",
+      "wildlife",
+      "photography",
+      "religious",
+      "shopping",
+      "accessibility"
+    ],
+    "trip_status": [
+      "draft",
+      "planning",
+      "confirmed",
+      "in_progress",
+      "completed",
+      "cancelled"
+    ],
+    "member_role": [
+      "owner",
+      "editor",
+      "viewer"
+    ],
+    "item_type": [
+      "hotel",
+      "flight",
+      "poi",
+      "package",
+      "guide",
+      "transfer",
+      "meal",
+      "free"
+    ],
+    "item_source": [
+      "user",
+      "ai_planner",
+      "optimizer",
+      "agent",
+      "vote",
+      "import"
+    ],
+    "item_status": [
+      "proposed",
+      "confirmed",
+      "removed",
+      "replaced"
+    ],
+    "proposal_status": [
+      "open",
+      "accepted",
+      "rejected",
+      "expired"
+    ],
+    "vote_value": [
+      "yes",
+      "no",
+      "abstain"
+    ],
+    "agent_status": [
+      "planning",
+      "awaiting_input",
+      "awaiting_confirmation",
+      "executing",
+      "paused",
+      "completed",
+      "failed"
+    ],
+    "inventory_entity_type": [
+      "room_type",
+      "flight_fare",
+      "guide",
+      "poi"
+    ],
+    "hold_status": [
+      "active",
+      "confirmed",
+      "released",
+      "expired"
+    ],
+    "pricing_event_type": [
+      "search",
+      "view",
+      "booking",
+      "cancellation",
+      "abandon"
+    ],
+    "channel": [
+      "web",
+      "mobile_app",
+      "partner",
+      "call_centre",
+      "agent"
+    ],
+    "booking_status": [
+      "pending",
+      "confirmed",
+      "partially_confirmed",
+      "cancelled",
+      "failed",
+      "refunded"
+    ],
+    "booking_item_status": [
+      "pending",
+      "confirmed",
+      "cancelled",
+      "compensated"
+    ],
+    "payment_method": [
+      "card",
+      "upi",
+      "netbanking",
+      "wallet",
+      "mock"
+    ],
+    "payment_status": [
+      "initiated",
+      "authorised",
+      "captured",
+      "failed",
+      "refunded",
+      "voided"
+    ],
+    "expense_category": [
+      "accommodation",
+      "transport",
+      "food",
+      "activities",
+      "shopping",
+      "fees",
+      "misc"
+    ],
+    "split_type": [
+      "equal",
+      "custom",
+      "percentage",
+      "shares"
+    ],
+    "settlement_status": [
+      "outstanding",
+      "settled",
+      "written_off"
+    ],
+    "kb_section": [
+      "history",
+      "culture",
+      "etiquette",
+      "food",
+      "transport",
+      "safety",
+      "seasonal",
+      "practical"
+    ],
+    "advisory_type": [
+      "weather",
+      "health",
+      "safety",
+      "transport",
+      "political",
+      "wildlife"
+    ],
+    "advisory_level": [
+      "info",
+      "advisory",
+      "caution",
+      "warning",
+      "severe"
+    ],
+    "risk_level": [
+      "low",
+      "moderate",
+      "elevated",
+      "high"
+    ],
+    "alert_severity": [
+      "info",
+      "low",
+      "medium",
+      "high",
+      "critical"
+    ],
+    "delivery_status": [
+      "queued",
+      "sent",
+      "delivered",
+      "read",
+      "failed"
+    ],
+    "interaction_type": [
+      "view",
+      "click",
+      "like",
+      "save",
+      "book",
+      "dismiss",
+      "share",
+      "search"
+    ],
+    "eval_intent": [
+      "budget_stay",
+      "family_stay",
+      "luxury_stay",
+      "heritage_poi",
+      "nature_poi",
+      "food_poi",
+      "adventure_package",
+      "honeymoon_package",
+      "accessibility",
+      "pet_friendly"
+    ],
+    "dataset_split": [
+      "train",
+      "eval"
+    ],
+    "xr_scene_type": [
+      "panorama_360",
+      "model_3d",
+      "photogrammetry",
+      "video_360"
+    ],
+    "xr_asset_format": [
+      "jpg_equirect",
+      "gltf",
+      "glb",
+      "usdz",
+      "ktx2",
+      "mp4"
+    ],
+    "xr_platform": [
+      "webxr",
+      "arcore",
+      "arkit",
+      "desktop_fallback"
+    ],
+    "device_class": [
+      "phone_ar",
+      "tablet_ar",
+      "headset_vr",
+      "desktop"
+    ],
+    "confidence_band": [
+      "high",
+      "medium",
+      "low"
+    ],
+    "season": [
+      "winter",
+      "summer",
+      "monsoon",
+      "post_monsoon",
+      "spring",
+      "autumn"
+    ],
+    "weather_condition": [
+      "clear",
+      "partly_cloudy",
+      "cloudy",
+      "light_rain",
+      "heavy_rain",
+      "thunderstorm",
+      "fog",
+      "haze",
+      "snow"
+    ],
+    "error_code": [
+      "hold_expired",
+      "sold_out",
+      "over_budget",
+      "invalid_id",
+      "currency_mismatch",
+      "idempotency_conflict",
+      "constraint_infeasible",
+      "low_confidence"
+    ]
+  },
+  "id_prefixes": {
+    "countries": "cnt",
+    "cities": "cty",
+    "airports": "apt",
+    "airlines": "arl",
+    "languages": "lng",
+    "currencies": "cur",
+    "fx_rates": "fxr",
+    "amenities": "amn",
+    "categories": "cat",
+    "weather_daily": "wth",
+    "users": "usr",
+    "user_preferences": "prf",
+    "emergency_contacts": "emc",
+    "user_devices": "dev",
+    "hotels": "htl",
+    "hotel_room_types": "rmt",
+    "hotel_rate_plans": "rtp",
+    "hotel_amenities": "ham",
+    "hotel_policies": "hpo",
+    "hotel_media": "hmd",
+    "hotel_reviews": "rvw",
+    "flights": "flt",
+    "flight_fares": "far",
+    "activities_poi": "poi",
+    "poi_media": "pmd",
+    "poi_travel_matrix": "ptm",
+    "tour_packages": "pkg",
+    "package_components": "pcm",
+    "transfers": "trf",
+    "tour_guides": "gid",
+    "guide_availability": "gav",
+    "events_festivals": "evt",
+    "trips": "trp",
+    "trip_members": "tmb",
+    "itineraries": "itn",
+    "itinerary_items": "itm",
+    "proposals": "prp",
+    "votes": "vot",
+    "agent_sessions": "agt",
+    "inventory_calendar": "inv",
+    "holds": "hld",
+    "pricing_events": "pev",
+    "price_bounds": "pbd",
+    "price_history": "phs",
+    "bookings": "bkg",
+    "booking_items": "bit",
+    "payments": "pay",
+    "budgets": "bud",
+    "expenses": "exp",
+    "expense_splits": "spl",
+    "receipts": "rcp",
+    "place_kb": "kbc",
+    "poi_facts_kb": "fct",
+    "safety_advisories": "adv",
+    "safe_zones": "szn",
+    "alerts": "alr",
+    "landmark_image_set": "lmk",
+    "menu_sign_images": "sgn",
+    "user_interactions": "uix",
+    "eval_queries": "evq",
+    "eval_relevance_labels": "evl",
+    "eval_nl_search_set": "ens",
+    "eval_optimizer_cases": "eoc",
+    "xr_scenes": "xrs",
+    "xr_scene_hotspots": "xhs",
+    "xr_scene_assets": "xra",
+    "xr_device_profiles": "xdp",
+    "ar_wayfinding_cases": "awc"
+  }
+}
