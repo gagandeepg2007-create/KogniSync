@@ -5,7 +5,6 @@ import {
   Zap,
   ShieldCheck,
   Sparkles,
-  MapPin,
   ArrowRight,
   ChevronRight,
   Plane,
@@ -89,65 +88,42 @@ export const HomePage: React.FC = () => {
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              'linear-gradient(90deg, rgba(255,255,255,0.94) 0%, rgba(255,255,255,0.85) 28%, rgba(255,255,255,0.2) 55%, rgba(255,255,255,0.1) 80%, rgba(255,255,255,0.35) 100%)',
+              'linear-gradient(90deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 28%, rgba(255,255,255,0.18) 55%, rgba(255,255,255,0.06) 78%, rgba(255,255,255,0.2) 100%)',
           }}
         />
 
-        {/* Airplane in upper-right sky */}
-        <div className="absolute right-8 sm:right-16 lg:right-24 top-6 sm:top-10 pointer-events-none z-10 select-none">
-          <img
-            src="/images/home/airplane.png"
-            alt="Airplane flying toward Chennai"
-            className="w-32 sm:w-40 lg:w-48 drop-shadow-sm transform -rotate-1 opacity-95"
-          />
-        </div>
-
-        {/* Curved flight trail from Chennai toward Airplane */}
-        <svg
-          className="absolute right-12 lg:right-28 top-20 lg:top-24 w-40 lg:w-56 h-48 pointer-events-none z-10 opacity-60"
-          viewBox="0 0 200 180"
-          fill="none"
-        >
-          <path
-            d="M 170 160 C 140 100, 110 50, 40 20"
-            stroke="#9A3412"
-            strokeWidth="1.8"
-            strokeDasharray="4 5"
-          />
-        </svg>
-
         {/* Main Content Container (Hero grid: Left Text + Center/Right Planner Card) */}
-        <div className="relative z-20 max-w-[1536px] w-full mx-auto px-6 lg:px-12 pt-8 sm:pt-10 pb-12 flex flex-col lg:flex-row items-start justify-between gap-8 lg:gap-10">
+        <div className="relative z-20 max-w-[1536px] w-full mx-auto px-6 lg:px-12 pt-8 sm:pt-9 pb-12 flex flex-col lg:flex-row items-start justify-between gap-8 lg:gap-10">
           {/* ── Left Column: Hero Text & Value Pillars ── */}
-          <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-5 pt-1 lg:pt-3">
+          <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4 sm:gap-5 pt-1 lg:pt-2">
             {/* Small Eyebrow */}
             <span className="text-[11px] font-bold tracking-widest uppercase text-[#52627A]">
               YOUR AI-POWERED TRAVEL COMPANION
             </span>
 
             {/* Main Headline */}
-            <h1 className="text-4xl sm:text-[46px] lg:text-[48px] font-black leading-[1.08] tracking-tight font-display">
+            <h1 className="text-4xl sm:text-[46px] lg:text-[52px] font-black leading-[1.02] tracking-tight font-display">
               <span className="text-[#071B49] block">Plan the journey.</span>
               <span className="text-[#1769FF] block">We'll synchronize</span>
               <span className="text-[#1769FF] block">the rest.</span>
             </h1>
 
             {/* Description */}
-            <p className="text-xs sm:text-[13.5px] leading-relaxed text-[#475569] max-w-[360px]">
+            <p className="text-xs sm:text-[13.5px] leading-relaxed text-[#475569] max-w-[370px]">
               Tell us where you need to go, when you need to arrive, and what matters most.
               KogniSync compares complete multi-modal journeys — flights, trains, buses, cabs,
               metros and more. One request. The best options.
             </p>
 
             {/* Feature List (3 items) */}
-            <div className="flex flex-col gap-3.5 pt-1">
+            <div className="flex flex-col gap-3.5 pt-0.5">
               {/* Feature 1 */}
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-[#EBF2FF] text-[#1769FF] flex items-center justify-center shrink-0 shadow-2xs">
                   <Zap className="w-4 h-4 fill-current" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-[#071B49]">Multi-Modal Journeys</span>
+                  <span className="text-xs sm:text-[13px] font-bold text-[#071B49]">Multi-Modal Journeys</span>
                   <span className="text-[11px] text-[#52627A]">
                     All transport options in one place
                   </span>
@@ -160,7 +136,7 @@ export const HomePage: React.FC = () => {
                   <ShieldCheck className="w-4 h-4 fill-[#1769FF] text-white" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-[#071B49]">Reliable & Concurrent</span>
+                  <span className="text-xs sm:text-[13px] font-bold text-[#071B49]">Reliable & Concurrent</span>
                   <span className="text-[11px] text-[#52627A]">
                     Real-time inventory and safe booking
                   </span>
@@ -173,15 +149,24 @@ export const HomePage: React.FC = () => {
                   <Sparkles className="w-4 h-4 text-[#1769FF]" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-[#071B49]">AI-Powered Insights</span>
+                  <span className="text-xs sm:text-[13px] font-bold text-[#071B49]">AI-Powered Insights</span>
                   <span className="text-[11px] text-[#52627A]">Personalized recommendations</span>
                 </div>
+              </div>
+
+              {/* Subtle flying birds silhouette */}
+              <div className="hidden sm:flex items-center opacity-45 ml-14 mt-1">
+                <svg className="w-20 h-5 text-slate-800 pointer-events-none" viewBox="0 0 70 20" fill="currentColor">
+                  <path d="M5 12 C7 8, 11 8, 13 12 C15 8, 19 8, 21 12 C19 11, 15 11, 13 14 C11 11, 7 11, 5 12 Z" />
+                  <path d="M28 7 C29.5 4, 32.5 4, 34 7 C35.5 4, 38.5 4, 40 7 C38.5 6.2, 35.5 6.2, 34 8.5 C32.5 6.2, 29.5 6.2, 28 7 Z" />
+                  <path d="M48 13 C49 10, 52 10, 53.5 13 C55 10, 58 10, 59 13 C58 12.2, 55 12.2, 53.5 14.5 C52 12.2, 49 12.2, 48 13 Z" />
+                </svg>
               </div>
             </div>
           </div>
 
           {/* ── Right / Center Column: Main Planner Card ── */}
-          <div className="w-full lg:flex-1 lg:max-w-[760px] xl:max-w-[800px]">
+          <div className="w-full lg:flex-1 lg:max-w-[820px] xl:max-w-[840px]">
             <JourneyPlanner />
           </div>
         </div>
@@ -189,41 +174,55 @@ export const HomePage: React.FC = () => {
         {/* ── Geographic Labels Overlaid on the Travel Scene ── */}
 
         {/* Lower Left: Bangalore Label & Dotted Curve */}
-        <div className="relative lg:absolute left-6 lg:left-14 bottom-4 lg:bottom-7 z-20 flex flex-col items-start select-none pb-4 lg:pb-0">
-          <div className="flex items-center gap-1.5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
-            <div className="w-4 h-4 rounded-full bg-white flex items-center justify-center shadow-xs">
-              <MapPin className="w-3 h-3 text-[#071B49] fill-[#071B49]" />
+        <div className="relative lg:absolute left-6 lg:left-14 bottom-4 lg:bottom-6 z-20 flex flex-col items-start select-none pb-4 lg:pb-0">
+          <div className="flex items-center gap-1.5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-xs">
+              <div className="w-2 h-2 rounded-full bg-[#071B49]" />
             </div>
             <span className="font-bold text-sm tracking-wide">Bangalore</span>
           </div>
-          <p className="font-script italic text-white text-base lg:text-lg leading-tight ml-5 mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.7)]">
+          <p className="font-script italic text-white text-base lg:text-lg leading-tight ml-6 mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
             A city that<br />keeps you moving
           </p>
 
           {/* Dotted path leading to bottom corner */}
           <svg
-            className="w-16 h-8 -ml-2 -mt-1 opacity-70 pointer-events-none"
-            viewBox="0 0 70 35"
+            className="w-20 h-10 -ml-3 -mt-1 opacity-80 pointer-events-none"
+            viewBox="0 0 80 40"
             fill="none"
           >
             <path
-              d="M 28 2 C 20 18, 10 26, 2 32"
+              d="M 35 2 C 22 18, 12 28, 2 36"
               stroke="white"
-              strokeWidth="1.5"
+              strokeWidth="1.8"
               strokeDasharray="3 3"
             />
           </svg>
         </div>
 
-        {/* Right Side: Chennai Label Over Temple/Bridge Landscape */}
-        <div className="hidden lg:flex absolute right-10 xl:right-16 bottom-16 xl:bottom-20 z-20 flex-col items-start select-none">
-          <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center shadow-xs">
-              <MapPin className="w-3.5 h-3.5 text-[#DC2626] fill-[#DC2626]" />
+        {/* Upper-Right Side: Chennai Label and Flight Trail to Airplane */}
+        <div className="hidden lg:flex absolute right-6 xl:right-10 top-32 xl:top-36 z-20 flex-col items-start select-none">
+          {/* Curved flight trail leading towards airplane in sky */}
+          <svg
+            className="w-32 h-24 -ml-20 -mt-16 pointer-events-none opacity-70"
+            viewBox="0 0 120 90"
+            fill="none"
+          >
+            <path
+              d="M 100 80 C 70 45, 45 25, 10 5"
+              stroke="#B91C1C"
+              strokeWidth="1.8"
+              strokeDasharray="4 4"
+            />
+          </svg>
+
+          <div className="flex items-center gap-1.5 -mt-6">
+            <div className="w-5 h-5 rounded-full bg-[#DC2626] flex items-center justify-center shadow-xs">
+              <div className="w-2 h-2 rounded-full bg-white" />
             </div>
-            <span className="font-bold text-sm tracking-wide text-[#7F1D1D]">Chennai</span>
+            <span className="font-bold text-sm tracking-wide text-[#071B49]">Chennai</span>
           </div>
-          <p className="font-script italic text-[#7F1D1D] text-sm lg:text-base leading-snug ml-6 mt-0.5">
+          <p className="font-script italic text-[#7F1D1D] text-sm lg:text-base leading-snug ml-6 mt-0.5 font-medium">
             Temples,<br />Beaches,<br />More to Explore
           </p>
         </div>

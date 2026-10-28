@@ -32,7 +32,7 @@ export const Navbar: React.FC = () => {
               </svg>
             </div>
             <span className="font-display font-extrabold text-xl tracking-tight text-[#071B49]">
-              KogniSync<span className="text-[#1769FF] text-xs align-super ml-0.5">●</span>
+              KogniSync
             </span>
           </Link>
 
