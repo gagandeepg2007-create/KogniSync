@@ -5,7 +5,8 @@ import { Search, Bell, ChevronDown } from 'lucide-react';
 export const Navbar: React.FC = () => {
   const location = useLocation();
 
-  const isPlanActive = location.pathname === '/' || location.pathname.startsWith('/plan');
+  const isTripsActive = location.pathname.startsWith('/trips');
+  const isPlanActive = !isTripsActive && (location.pathname === '/' || location.pathname.startsWith('/plan'));
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
@@ -50,7 +51,11 @@ export const Navbar: React.FC = () => {
 
             <Link
               to="/trips/trp-demo-blr-maa"
-              className="h-full flex items-center text-sm font-medium text-[#52627A] hover:text-[#071B49] transition-colors"
+              className={`h-full flex items-center text-sm font-semibold transition-all relative ${
+                isTripsActive
+                  ? 'text-[#1769FF] border-b-2 border-[#1769FF] -mb-[1px]'
+                  : 'text-[#52627A] hover:text-[#071B49]'
+              }`}
             >
               Trips
             </Link>
