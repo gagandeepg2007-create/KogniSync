@@ -11,6 +11,7 @@ from app.db.init_app_tables import init_application_tables
 from app.api.routes.health import router as health_router
 from app.api.routes.booking import router as booking_router
 from app.api.routes.journeys import router as journeys_router
+from app.api.routes.ai import router as ai_router
 
 
 @asynccontextmanager
@@ -45,6 +46,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(booking_router)
 app.include_router(journeys_router)
+app.include_router(ai_router)
 
 # Mount frontend static files if directory exists
 frontend_dir = Path(__file__).resolve().parent.parent.parent / "frontend"
