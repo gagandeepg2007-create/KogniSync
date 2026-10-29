@@ -76,3 +76,24 @@ class InventoryRepository(BaseRepository[InventoryCalendar]):
         item = await self.lock_by_id(inventory_id)
         item.held_units = max(0, item.held_units - units_to_release)
         return item
+
+    async def confirm_held_units(self, inventory_id: str, units: int) -> InventoryCalendar:
+        """
+        Transitions held units to booked units atomically under SELECT ... FOR UPDATE.
+        Invariant: (booked_units + units) + (held_units - units) == booked_units + held_units <= total_units.
+        """
+        item = await self.lock_by_id(inventory_id)
+        if item.held_units < units:
+            item.held_units = 0
+        else:
+            item.held_units -= units
+        item.booked_units += units
+        return item
+
+    async def release_booked_units(self, inventory_id: str, units: int) -> InventoryCalendar:
+        """
+        Decrements booked_units upon cancellation under SELECT ... FOR UPDATE.
+        """
+        item = await self.lock_by_id(inventory_id)
+        item.booked_units = max(0, item.booked_units - units)
+        return item
