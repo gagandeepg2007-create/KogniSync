@@ -1,51 +1,99 @@
 """
 KogniSync — Authoritative PostgreSQL Booking Lifecycle & Reliability Service
 
-Implements transactional booking lifecycle, inventory locking, holds, expiration,
-confirmation, payment recording, and compensation using SQLAlchemy AsyncSession.
+Core transactional orchestration service for inventory holds, booking sagas,
+hold expiration, durable idempotency, row-level locking, and compensation workflows.
 Preserves strict data invariants: booked_units + held_units <= total_units.
 """
 
 import uuid
+import json
+import hashlib
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta, date
 from decimal import Decimal
-from typing import Optional, List, Sequence
+from typing import Optional, List, Sequence, Dict, Any, Union
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.db.models.inventory import InventoryCalendar, Hold
 from app.db.models.booking import Booking, BookingItem
 from app.db.models.payment import Payment
-from app.repositories.inventory_repository import InventoryRepository
-from app.repositories.hold_repository import HoldRepository
-from app.repositories.booking_repository import BookingRepository
-from app.repositories.payment_repository import PaymentRepository
-from app.repositories.user_repository import UserRepository
-from app.repositories.exceptions import (
+from app.db.models.events import BookingLifecycleEvent
+from app.repositories import (
+    InventoryRepository,
+    HoldRepository,
+    BookingRepository,
+    PaymentRepository,
+    UserRepository,
+    EventRepository,
+    IdempotencyRepository,
     InventoryNotFoundError,
     InsufficientInventoryError,
     RepositoryConflictError,
+    IdempotencyPayloadConflictError,
+    HoldNotFoundError,
+    HoldExpiredError,
+    HoldNotActiveError,
+    BookingNotFoundError,
+    PaymentFailedError
 )
+from app.services.payment_simulator import PaymentSimulator, PaymentSimulationResult
 from app.core.logging import logger
 
 
 class BookingService:
     """
     Authoritative asynchronous PostgreSQL booking service.
-    Enforces transactional inventory capacity checks, row-level locking,
-    idempotency protection, hold lifecycle, confirmation, and payment compensation.
+    Owns database transaction boundaries (session.begin() / commit / rollback).
+    Guarantees the central invariant: booked_units + held_units <= total_units.
+    Coordinates hold lifecycle, confirmation, compensation, and idempotency deduplication.
     """
 
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.inventory_repo = InventoryRepository(session)
+        self.inv_repo = InventoryRepository(session)
+        self.inventory_repo = self.inv_repo  # Alias for backward compatibility
         self.hold_repo = HoldRepository(session)
         self.booking_repo = BookingRepository(session)
         self.payment_repo = PaymentRepository(session)
         self.user_repo = UserRepository(session)
+        self.event_repo = EventRepository(session)
+        self.idemp_repo = IdempotencyRepository(session)
 
-    async def get_inventory_status(
+    @asynccontextmanager
+    async def _tx(self):
+        """
+        Safely executes operations within a database transaction boundary,
+        accommodating SQLAlchemy 2.0 autobegin state.
+        """
+        if self.session.in_transaction():
+            try:
+                yield
+                await self.session.commit()
+            except Exception:
+                await self.session.rollback()
+                raise
+        else:
+            async with self.session.begin():
+                yield
+
+    @staticmethod
+    def _compute_payload_hash(payload: Optional[Dict[str, Any]]) -> str:
+        if not payload:
+            return ""
+        payload_str = json.dumps(payload, sort_keys=True)
+        return hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
+
+    async def get_inventory_by_id(self, inventory_id: str) -> Optional[InventoryCalendar]:
+        """
+        Reads inventory calendar record by primary key.
+        """
+        return await self.inv_repo.get_by_id(inventory_id)
+
+    async def get_inventory_by_natural_key(
         self,
         entity_type: str,
         entity_id: str,
@@ -54,13 +102,40 @@ class BookingService:
         """
         Reads inventory calendar record by natural key.
         """
-        return await self.inventory_repo.get_by_natural_key(entity_type, entity_id, for_date)
+        return await self.inv_repo.get_by_natural_key(entity_type, entity_id, for_date)
 
-    async def get_inventory_by_id(self, inventory_id: str) -> Optional[InventoryCalendar]:
+    async def get_inventory_status(
+        self,
+        inventory_id: Optional[str] = None,
+        entity_type: Optional[str] = None,
+        entity_id: Optional[str] = None,
+        for_date: Optional[date] = None
+    ) -> Any:
         """
-        Reads inventory calendar record by primary key.
+        Returns inventory status. If called with inventory_id, returns dictionary
+        with available_units suitable for concurrency audits. If called with natural keys,
+        returns the InventoryCalendar entity.
         """
-        return await self.inventory_repo.get_by_id(inventory_id)
+        if inventory_id:
+            item = await self.inv_repo.get_by_id(inventory_id)
+            if not item:
+                return None
+            available = item.total_units - item.booked_units - item.held_units
+            return {
+                "inventory_id": item.inventory_id,
+                "entity_type": item.entity_type,
+                "entity_id": item.entity_id,
+                "for_date": str(item.for_date),
+                "total_units": item.total_units,
+                "booked_units": item.booked_units,
+                "held_units": item.held_units,
+                "available_units": available,
+                "price": str(item.price),
+                "currency": item.currency
+            }
+        elif entity_type and entity_id and for_date:
+            return await self.inv_repo.get_by_natural_key(entity_type, entity_id, for_date)
+        return None
 
     async def create_hold(
         self,
@@ -68,68 +143,135 @@ class BookingService:
         user_id: str,
         units: int,
         idempotency_key: str,
-        expires_in_seconds: int = 600,
-        correlation_id: Optional[str] = None
+        correlation_id: Optional[str] = None,
+        ttl_seconds: int = 600,
+        payload_dict: Optional[Dict[str, Any]] = None,
+        expires_in_seconds: Optional[int] = None
     ) -> Hold:
         """
-        Creates a temporary inventory hold.
-        1. Checks idempotency: if key exists, returns existing hold or raises conflict if payload diverges.
-        2. Locks inventory row with SELECT ... FOR UPDATE.
-        3. Verifies invariant (booked + held + requested <= total) and increments held_units.
-        4. Persists hold record with status 'active'.
+        Creates a temporary inventory hold backed by PostgreSQL row locking (SELECT ... FOR UPDATE).
+        Enforces booked_units + held_units <= total_units.
+        Handles idempotency deduplication and payload conflict validation.
         """
         if units <= 0:
-            raise ValueError(f"Requested units must be positive (received {units}).")
+            raise ValueError(f"Requested units must be positive (received {units})")
 
-        # 1. Idempotency Check
+        effective_ttl = expires_in_seconds if expires_in_seconds is not None else ttl_seconds
+        cid = correlation_id or f"corr_{uuid.uuid4().hex[:12]}"
+        payload_hash = self._compute_payload_hash(payload_dict)
+
+        # 1. Check idempotency record first (fast path)
+        existing_idemp = await self.idemp_repo.get_by_key(idempotency_key)
+        if existing_idemp:
+            if payload_hash and existing_idemp.request_hash and existing_idemp.request_hash != payload_hash:
+                raise IdempotencyPayloadConflictError(
+                    f"Idempotency key '{idempotency_key}' reused with conflicting request payload"
+                )
+            if existing_idemp.resource_id:
+                existing_hold = await self.hold_repo.get_by_id(existing_idemp.resource_id)
+                if existing_hold:
+                    return existing_hold
+
+        # Check existing hold table idempotency key
         existing_hold = await self.hold_repo.get_by_idempotency_key(idempotency_key)
-        if existing_hold is not None:
-            # Verify payload equivalence
+        if existing_hold:
             if (
                 existing_hold.inventory_id != inventory_id
                 or existing_hold.user_id != user_id
                 or existing_hold.units != units
             ):
-                raise RepositoryConflictError(
+                raise IdempotencyPayloadConflictError(
                     f"Idempotency collision for key '{idempotency_key}': "
-                    f"existing payload (inv={existing_hold.inventory_id}, user={existing_hold.user_id}, units={existing_hold.units}) "
-                    f"conflicts with requested payload (inv={inventory_id}, user={user_id}, units={units})."
+                    f"existing payload conflicts with requested payload."
                 )
-            logger.info(
-                f"Hold idempotency replay: returning existing hold '{existing_hold.hold_id}' "
-                f"[correlation_id={correlation_id}]"
-            )
             return existing_hold
 
-        # 2. Row-level lock and capacity increment (atomic check-and-set)
-        await self.inventory_repo.allocate_held_units(inventory_id, units)
-
-        # 3. Create Hold Record
+        # 2. Transactional hold creation with row locking
         now = datetime.now(timezone.utc)
-        expires_at = now + timedelta(seconds=expires_in_seconds)
-        hold_id = f"hld_{uuid.uuid4().hex[:8]}"
+        expires_at = now + timedelta(seconds=effective_ttl)
+        new_hold_id = f"hld_{uuid.uuid4().hex[:16]}"
 
-        hold = Hold(
-            hold_id=hold_id,
-            inventory_id=inventory_id,
-            user_id=user_id,
-            units=units,
-            idempotency_key=idempotency_key,
-            created_at=now,
-            expires_at=expires_at,
-            released_at=None,
-            booking_id=None,
-            status="active",
-            updated_at=now
-        )
+        async with self._tx():
+            # Check hold idempotency inside transaction
+            existing_hold = await self.hold_repo.get_by_idempotency_key(idempotency_key)
+            if existing_hold:
+                return existing_hold
 
-        created = await self.hold_repo.create_hold(hold)
-        await self.session.flush()
-        logger.info(
-            f"Created hold '{hold_id}' for {units} unit(s) on inventory '{inventory_id}' "
-            f"[user_id={user_id}, correlation_id={correlation_id}]"
-        )
-        return created
+            # Pessimistic row-level lock on inventory_calendar
+            inv_item = await self.inv_repo.lock_by_id(inventory_id)
+
+            # Strict invariant check: booked + held + requested <= total
+            available = inv_item.total_units - inv_item.booked_units - inv_item.held_units
+            if units > available:
+                await self.event_repo.record_event(
+                    event_type="HOLD_REJECTED",
+                    correlation_id=cid,
+                    inventory_id=inventory_id,
+                    user_id=user_id,
+                    units=units,
+                    metadata={"reason": "insufficient_inventory", "available": available, "requested": units}
+                )
+                raise InsufficientInventoryError(
+                    f"Insufficient inventory for item '{inventory_id}'. Available: {available}, Requested: {units}"
+                )
+
+            # Increment held units safely under lock
+            inv_item.held_units += units
+
+            # Create hold record
+            hold = Hold(
+                hold_id=new_hold_id,
+                inventory_id=inventory_id,
+                user_id=user_id,
+                units=units,
+                idempotency_key=idempotency_key,
+                created_at=now,
+                expires_at=expires_at,
+                released_at=None,
+                booking_id=None,
+                status="active",
+                updated_at=now
+            )
+
+            try:
+                async with self.session.begin_nested():
+                    self.hold_repo.add(hold)
+                    await self.session.flush()
+            except IntegrityError:
+                # Concurrent request inserted with same idempotency key
+                existing = await self.hold_repo.get_by_idempotency_key(idempotency_key)
+                if existing:
+                    inv_item.held_units -= units
+                    return existing
+                raise
+
+            # Record lifecycle event
+            await self.event_repo.record_event(
+                event_type="HOLD_CREATED",
+                correlation_id=cid,
+                inventory_id=inventory_id,
+                hold_id=new_hold_id,
+                user_id=user_id,
+                state_from=None,
+                state_to="active",
+                units=units,
+                metadata={"expires_at": expires_at.isoformat(), "ttl_seconds": effective_ttl}
+            )
+
+            # Store idempotency record
+            await self.idemp_repo.record_response(
+                idempotency_key=idempotency_key,
+                scope="hold",
+                request_hash=payload_hash or "none",
+                resource_id=new_hold_id,
+                response_status=201,
+                response_body=json.dumps({"hold_id": new_hold_id, "units": units, "status": "active"})
+            )
+
+        return hold
+
+    async def get_hold(self, hold_id: str) -> Optional[Hold]:
+        return await self.hold_repo.get_by_id(hold_id)
 
     async def release_hold(
         self,
@@ -137,301 +279,350 @@ class BookingService:
         correlation_id: Optional[str] = None
     ) -> Hold:
         """
-        Releases an active inventory hold, decrementing held_units on inventory_calendar.
+        Explicitly releases an active hold, immediately restoring available capacity.
         """
-        hold = await self.hold_repo.get_by_id(hold_id)
-        if hold is None:
-            raise ValueError(f"Hold id '{hold_id}' not found.")
+        cid = correlation_id or f"corr_{uuid.uuid4().hex[:12]}"
+        now = datetime.now(timezone.utc)
+        async with self._tx():
+            hold = await self.hold_repo.lock_by_id(hold_id)
+            if not hold:
+                raise HoldNotFoundError(f"Hold '{hold_id}' not found")
+            if hold.status != "active":
+                raise HoldNotActiveError(f"Hold '{hold_id}' is in status '{hold.status}', cannot release")
 
-        if hold.status == "active":
-            await self.inventory_repo.release_held_units(hold.inventory_id, hold.units)
-            now = datetime.now(timezone.utc)
+            # Restore inventory capacity
+            await self.inv_repo.release_held_units(hold.inventory_id, hold.units)
+
             hold.status = "released"
             hold.released_at = now
             hold.updated_at = now
-            await self.session.flush()
-            logger.info(
-                f"Released hold '{hold_id}' for {hold.units} unit(s) on inventory '{hold.inventory_id}' "
-                f"[correlation_id={correlation_id}]"
+
+            await self.event_repo.record_event(
+                event_type="HOLD_RELEASED",
+                correlation_id=cid,
+                inventory_id=hold.inventory_id,
+                hold_id=hold.hold_id,
+                user_id=hold.user_id,
+                state_from="active",
+                state_to="released",
+                units=hold.units
             )
 
         return hold
 
     async def expire_holds(
         self,
+        as_of_time: Optional[datetime] = None,
+        inventory_id: Optional[str] = None,
+        limit: int = 100,
+        correlation_id: Optional[str] = None,
         now: Optional[datetime] = None
-    ) -> int:
+    ) -> List[str]:
         """
-        Scans for active holds that have exceeded their expires_at timestamp,
-        releases held inventory units, and transitions status to 'expired'.
-        Returns total number of expired holds processed.
+        Processes expired holds whose TTL has elapsed.
+        Safely restores held units back to available capacity under row locking.
+        Returns list of expired hold IDs.
         """
-        check_time = now or datetime.now(timezone.utc)
-        stmt = (
-            select(Hold)
-            .where(Hold.status == "active", Hold.expires_at <= check_time)
-            .with_for_update()
-        )
-        res = await self.session.execute(stmt)
-        expired_holds = res.scalars().all()
+        check_time = as_of_time or now or datetime.now(timezone.utc)
+        candidates = await self.hold_repo.find_expired_holds(as_of_time=check_time, inventory_id=inventory_id, limit=limit)
+        expired_ids: List[str] = []
 
-        count = 0
-        for hold in expired_holds:
-            await self.inventory_repo.release_held_units(hold.inventory_id, hold.units)
-            hold.status = "expired"
-            hold.updated_at = check_time
-            count += 1
+        for candidate in candidates:
+            async with self._tx():
+                hold = await self.hold_repo.lock_by_id(candidate.hold_id)
+                # Verify still active and expired under lock
+                if not hold or hold.status != "active" or hold.expires_at > check_time:
+                    continue
 
-        if count > 0:
-            await self.session.flush()
-            logger.info(f"Expired {count} overdue inventory hold(s) at {check_time.isoformat()}")
+                # Release held units back to inventory
+                await self.inv_repo.release_held_units(hold.inventory_id, hold.units)
 
-        return count
+                hold.status = "expired"
+                hold.released_at = check_time
+                hold.updated_at = check_time
+
+                await self.event_repo.record_event(
+                    event_type="HOLD_EXPIRED",
+                    correlation_id=correlation_id or f"exp_{hold.hold_id}",
+                    inventory_id=hold.inventory_id,
+                    hold_id=hold.hold_id,
+                    user_id=hold.user_id,
+                    state_from="active",
+                    state_to="expired",
+                    units=hold.units
+                )
+                expired_ids.append(hold.hold_id)
+
+        return expired_ids
 
     async def confirm_booking(
         self,
-        user_id: str,
-        hold_ids: List[str],
-        idempotency_key: str,
-        currency: str = "INR",
-        payment_method: str = "credit_card",
+        hold_id: Union[str, List[str], None] = None,
+        user_id: str = "",
+        payment_method: str = "card",
+        idempotency_key: str = "",
+        correlation_id: Optional[str] = None,
         simulate_payment_failure: bool = False,
-        correlation_id: Optional[str] = None
+        payment_failure_code: Optional[str] = None,
+        hold_ids: Optional[List[str]] = None,
+        currency: Optional[str] = None,
     ) -> Booking:
         """
-        Confirms a booking backed by one or more active holds.
-        1. Checks idempotency: if booking already exists for key, returns it.
-        2. Validates all holds: active, unexpired, belonging to user_id.
-        3. Locks each inventory row, decrements held_units, increments booked_units.
-        4. Simulates payment authorization:
-           - On success: records captured Payment, marks Booking confirmed.
-           - On failure: marks Booking failed, marks Payment failed, compensates holds.
+        Confirms a held reservation (or multiple held legs in a multi-leg journey)
+        into a confirmed booking.
+        Simulates payment processing outside long-held database locks.
+        Compensates (releases held inventory) if payment fails.
+        Converts held units into booked units if payment succeeds (capacity neutral).
         """
-        if not hold_ids:
+        cid = correlation_id or f"corr_{uuid.uuid4().hex[:16]}"
+        if not idempotency_key:
+            idempotency_key = f"bkg_idemp_{uuid.uuid4().hex[:16]}"
+
+        # Resolve target hold IDs
+        target_hold_ids: List[str] = []
+        if hold_ids:
+            target_hold_ids = list(hold_ids)
+        elif hold_id:
+            if isinstance(hold_id, list):
+                target_hold_ids = list(hold_id)
+            else:
+                target_hold_ids = [hold_id]
+        else:
             raise ValueError("Cannot confirm booking without at least one hold identifier.")
 
-        # 1. Idempotency Check
+        # Check existing booking by idempotency key
         existing_booking = await self.booking_repo.get_by_idempotency_key(idempotency_key)
-        if existing_booking is not None:
-            logger.info(
-                f"Booking idempotency replay for key '{idempotency_key}': "
-                f"returning reference '{existing_booking.booking_reference}' [correlation_id={correlation_id}]"
-            )
+        if existing_booking:
             return existing_booking
 
-        # 2. Validate all holds inside transaction
-        holds: List[Hold] = []
+        # Verify all holds exist and are active
         now = datetime.now(timezone.utc)
+        resolved_holds: List[Hold] = []
+        resolved_invs: List[InventoryCalendar] = []
+        total_price = Decimal("0.00")
+        booking_currency = currency or "INR"
 
-        for hid in hold_ids:
+        for hid in target_hold_ids:
             hold = await self.hold_repo.get_by_id(hid)
-            if hold is None:
-                raise ValueError(f"Hold '{hid}' not found.")
-            if hold.user_id != user_id:
-                raise ValueError(f"Hold '{hid}' belongs to user '{hold.user_id}', not '{user_id}'.")
+            if not hold:
+                raise HoldNotFoundError(f"Hold '{hid}' not found")
             if hold.status != "active":
-                raise ValueError(f"Hold '{hid}' is not active (current status: '{hold.status}').")
+                raise HoldNotActiveError(f"Hold '{hid}' is '{hold.status}', cannot confirm")
             if hold.expires_at <= now:
-                raise ValueError(f"Hold '{hid}' expired at {hold.expires_at.isoformat()}.")
-            holds.append(hold)
+                await self.expire_holds(as_of_time=now)
+                raise HoldExpiredError(f"Hold '{hid}' has expired at {hold.expires_at.isoformat()}")
 
-        # 3. Calculate financial totals and prepare items
-        total_amount = Decimal("0.00")
-        booking_id = f"bkg_{uuid.uuid4().hex[:8]}"
-        booking_ref = f"KS-BKG-{uuid.uuid4().hex[:6].upper()}"
+            inv_item = await self.inv_repo.get_by_id(hold.inventory_id)
+            if not inv_item:
+                raise InventoryNotFoundError(f"Inventory '{hold.inventory_id}' not found")
 
-        items: List[BookingItem] = []
-        locked_inventories: List[InventoryCalendar] = []
+            booking_currency = inv_item.currency
+            line_total = Decimal(str(inv_item.price)) * Decimal(hold.units)
+            total_price += line_total
+            resolved_holds.append(hold)
+            resolved_invs.append(inv_item)
 
-        for hold in holds:
-            inv = await self.inventory_repo.lock_by_id(hold.inventory_id)
-            locked_inventories.append(inv)
-            line_total = Decimal(str(inv.price)) * Decimal(hold.units)
-            total_amount += line_total
+        # 1. Execute payment processing outside long database lock
+        pay_result = PaymentSimulator.process_payment(
+            amount=total_price,
+            currency=booking_currency,
+            method=payment_method,
+            idempotency_key=f"pay_{idempotency_key}",
+            simulate_failure=simulate_payment_failure,
+            failure_code=payment_failure_code
+        )
 
-            item = BookingItem(
-                booking_item_id=f"bki_{uuid.uuid4().hex[:8]}",
-                booking_id=booking_id,
-                entity_type=inv.entity_type,
-                entity_id=inv.entity_id,
-                inventory_id=inv.inventory_id,
-                title=f"{inv.entity_type.replace('_', ' ').title()} ({inv.entity_id})",
-                for_date=inv.for_date,
-                units=hold.units,
-                unit_price=inv.price,
-                line_total=line_total,
-                currency=currency,
-                status="pending",
-                compensated_at=None,
-                updated_at=now
+        # 2. Compensation saga on payment failure
+        if not pay_result.success:
+            async with self._tx():
+                for hid in target_hold_ids:
+                    locked_hold = await self.hold_repo.lock_by_id(hid)
+                    if locked_hold and locked_hold.status == "active":
+                        await self.inv_repo.release_held_units(locked_hold.inventory_id, locked_hold.units)
+                        locked_hold.status = "released"
+                        locked_hold.released_at = now
+                        locked_hold.updated_at = now
+
+                        await self.event_repo.record_event(
+                            event_type="PAYMENT_FAILED",
+                            correlation_id=cid,
+                            inventory_id=locked_hold.inventory_id,
+                            hold_id=locked_hold.hold_id,
+                            user_id=user_id or locked_hold.user_id,
+                            state_from="active",
+                            state_to="released",
+                            units=locked_hold.units,
+                            metadata={"failure_code": pay_result.failure_code, "reason": pay_result.message}
+                        )
+
+            raise PaymentFailedError(
+                f"Payment authorization failed ({pay_result.failure_code}). All holds released and inventory compensated."
             )
-            items.append(item)
 
-        # 4. Handle Payment & Compensation
-        payment_id = f"pay_{uuid.uuid4().hex[:8]}"
-        payment_idem = f"pay_{idempotency_key}"
+        # 3. Complete booking saga on payment success
+        booking_id = f"bkg_{uuid.uuid4().hex[:16]}"
+        booking_ref = f"REF-{uuid.uuid4().hex[:8].upper()}"
+        payment_id = f"pay_{uuid.uuid4().hex[:16]}"
 
-        if simulate_payment_failure:
-            # Payment failed -> Compensate holds
-            logger.warning(
-                f"Simulated payment failure triggered for booking '{booking_id}'. "
-                f"Initiating saga compensation for {len(holds)} hold(s)... [correlation_id={correlation_id}]"
-            )
-            for hold in holds:
-                await self.inventory_repo.release_held_units(hold.inventory_id, hold.units)
-                hold.status = "released"
-                hold.released_at = now
-                hold.updated_at = now
+        async with self._tx():
+            # Check idempotency inside transaction
+            existing_booking = await self.booking_repo.get_by_idempotency_key(idempotency_key)
+            if existing_booking:
+                return existing_booking
 
-            for item in items:
-                item.status = "compensated"
-                item.compensated_at = now
-
-            failed_booking = Booking(
+            # Create Booking
+            booking = Booking(
                 booking_id=booking_id,
-                user_id=user_id,
+                user_id=user_id or resolved_holds[0].user_id,
+                trip_id=None,
+                itinerary_id=None,
                 booking_reference=booking_ref,
-                channel="web_journey_orchestrator",
-                total_amount=total_amount,
-                currency=currency,
+                channel="web",
+                total_amount=total_price,
+                currency=booking_currency,
                 tax_amount=Decimal("0.00"),
                 idempotency_key=idempotency_key,
-                status="failed",
-                confirmed_at=None,
-                cancelled_at=now,
-                cancellation_reason="Payment authorization failed: simulated payment gateway decline",
+                status="confirmed",
+                confirmed_at=now,
+                cancelled_at=None,
+                cancellation_reason=None,
                 created_at=now,
                 updated_at=now
             )
-            await self.booking_repo.create_booking(failed_booking, items)
+            self.session.add(booking)
 
+            # Re-lock each hold, transition capacity, and create booking item
+            for hold, inv_item in zip(resolved_holds, resolved_invs):
+                locked_hold = await self.hold_repo.lock_by_id(hold.hold_id)
+                if not locked_hold or locked_hold.status != "active":
+                    raise HoldExpiredError(f"Hold '{hold.hold_id}' expired or became inactive prior to confirmation")
+
+                # Atomically transition capacity: booked + units, held - units
+                await self.inv_repo.confirm_held_units(locked_hold.inventory_id, locked_hold.units)
+
+                line_total = Decimal(str(inv_item.price)) * Decimal(locked_hold.units)
+                booking_item_id = f"bit_{uuid.uuid4().hex[:16]}"
+
+                booking_item = BookingItem(
+                    booking_item_id=booking_item_id,
+                    booking_id=booking_id,
+                    entity_type=inv_item.entity_type,
+                    entity_id=inv_item.entity_id,
+                    inventory_id=inv_item.inventory_id,
+                    title=f"Reservation for {inv_item.entity_type} {inv_item.entity_id}",
+                    for_date=inv_item.for_date,
+                    units=locked_hold.units,
+                    unit_price=inv_item.price,
+                    line_total=line_total,
+                    currency=inv_item.currency,
+                    status="confirmed",
+                    compensated_at=None,
+                    updated_at=now
+                )
+                self.session.add(booking_item)
+
+                locked_hold.status = "confirmed"
+                locked_hold.booking_id = booking_id
+                locked_hold.updated_at = now
+
+                await self.event_repo.record_event(
+                    event_type="BOOKING_CONFIRMED",
+                    correlation_id=cid,
+                    inventory_id=locked_hold.inventory_id,
+                    hold_id=locked_hold.hold_id,
+                    booking_id=booking_id,
+                    payment_id=payment_id,
+                    user_id=user_id or locked_hold.user_id,
+                    state_from="held",
+                    state_to="confirmed",
+                    units=locked_hold.units,
+                    metadata={"booking_reference": booking_ref, "total_amount": str(total_price)}
+                )
+
+            # Create Payment
             payment = Payment(
                 payment_id=payment_id,
                 booking_id=booking_id,
                 method=payment_method,
-                status="failed",
-                authorised_amount=Decimal("0.00"),
-                captured_amount=Decimal("0.00"),
+                status="captured",
+                authorised_amount=total_price,
+                captured_amount=total_price,
                 refunded_amount=Decimal("0.00"),
-                currency=currency,
-                gateway_reference=f"gw_fail_{uuid.uuid4().hex[:8]}",
-                idempotency_key=payment_idem,
-                failure_code="SIMULATED_PAYMENT_FAILURE",
-                authorised_at=None,
-                captured_at=None,
+                currency=booking_currency,
+                gateway_reference=pay_result.gateway_reference,
+                idempotency_key=f"pay_{idempotency_key}",
+                failure_code=None,
+                authorised_at=now,
+                captured_at=now,
                 created_at=now,
                 updated_at=now
             )
-            await self.payment_repo.create_payment(payment)
-            await self.session.flush()
+            self.session.add(payment)
 
-            raise RepositoryConflictError(
-                f"Booking '{booking_ref}' failed due to payment decline. "
-                f"All {len(holds)} inventory holds have been safely compensated and released."
+            # Store idempotency record
+            await self.idemp_repo.record_response(
+                idempotency_key=idempotency_key,
+                scope="booking",
+                request_hash=self._compute_payload_hash({"hold_ids": target_hold_ids, "user_id": user_id}),
+                resource_id=booking_id,
+                response_status=200,
+                response_body=json.dumps({"booking_id": booking_id, "booking_reference": booking_ref, "status": "confirmed"})
             )
 
-        # Successful path: transition held -> booked
-        for hold, inv in zip(holds, locked_inventories):
-            inv.held_units = max(0, inv.held_units - hold.units)
-            inv.booked_units += hold.units
-            hold.status = "converted"
-            hold.booking_id = booking_id
-            hold.updated_at = now
-
-        for item in items:
-            item.status = "confirmed"
-
-        booking = Booking(
-            booking_id=booking_id,
-            user_id=user_id,
-            booking_reference=booking_ref,
-            channel="web_journey_orchestrator",
-            total_amount=total_amount,
-            currency=currency,
-            tax_amount=Decimal("0.00"),
-            idempotency_key=idempotency_key,
-            status="confirmed",
-            confirmed_at=now,
-            cancelled_at=None,
-            cancellation_reason=None,
-            created_at=now,
-            updated_at=now
-        )
-        await self.booking_repo.create_booking(booking, items)
-
-        payment = Payment(
-            payment_id=payment_id,
-            booking_id=booking_id,
-            method=payment_method,
-            status="captured",
-            authorised_amount=total_amount,
-            captured_amount=total_amount,
-            refunded_amount=Decimal("0.00"),
-            currency=currency,
-            gateway_reference=f"gw_{uuid.uuid4().hex[:8]}",
-            idempotency_key=payment_idem,
-            failure_code=None,
-            authorised_at=now,
-            captured_at=now,
-            created_at=now,
-            updated_at=now
-        )
-        await self.payment_repo.create_payment(payment)
-        await self.session.flush()
-
-        logger.info(
-            f"Booking '{booking_ref}' successfully confirmed with {len(items)} item(s) "
-            f"for amount {currency} {total_amount} [correlation_id={correlation_id}]"
-        )
         return booking
 
     async def cancel_booking(
         self,
         booking_id: str,
-        reason: str = "User requested cancellation"
+        correlation_id: Optional[str] = None,
+        reason: str = "user_cancelled"
     ) -> Booking:
         """
-        Cancels a confirmed booking, restoring booked units to available inventory,
-        marking booking items as compensated, and recording payment refund.
+        Cancels a confirmed booking and restores booked units to available inventory capacity.
         """
-        stmt = (
-            select(Booking)
-            .options(selectinload(Booking.booking_items))
-            .where(Booking.booking_id == booking_id)
-        )
-        res = await self.session.execute(stmt)
-        booking = res.scalar_one_or_none()
-        if booking is None:
-            raise ValueError(f"Booking id '{booking_id}' not found.")
-
-        if booking.status != "confirmed":
-            logger.info(f"Booking '{booking_id}' is already in status '{booking.status}'; no cancellation needed.")
-            return booking
-
+        cid = correlation_id or f"corr_{uuid.uuid4().hex[:16]}"
         now = datetime.now(timezone.utc)
+        async with self._tx():
+            booking = await self.booking_repo.get_by_id_with_items(booking_id)
+            if not booking:
+                raise BookingNotFoundError(f"Booking '{booking_id}' not found")
+            if booking.status != "confirmed":
+                raise ValueError(f"Booking '{booking_id}' is '{booking.status}', cannot cancel")
 
-        # Release booked units for each confirmed item
-        for item in booking.booking_items:
-            if item.status == "confirmed" and item.inventory_id:
-                inv = await self.inventory_repo.lock_by_id(item.inventory_id)
-                inv.booked_units = max(0, inv.booked_units - item.units)
-                item.status = "compensated"
-                item.compensated_at = now
-                item.updated_at = now
+            # Restore booked units for all items
+            for item in booking.booking_items:
+                if item.inventory_id and item.status == "confirmed":
+                    await self.inv_repo.release_booked_units(item.inventory_id, item.units)
+                    item.status = "cancelled"
+                    item.compensated_at = now
+                    item.updated_at = now
 
-        booking.status = "cancelled"
-        booking.cancelled_at = now
-        booking.cancellation_reason = reason
-        booking.updated_at = now
+            booking.status = "cancelled"
+            booking.cancelled_at = now
+            booking.cancellation_reason = reason
+            booking.updated_at = now
 
-        # Record payment refund if payment was captured
-        payments = await self.payment_repo.list_by_booking_id(booking_id)
-        for pay in payments:
-            if pay.status == "captured":
-                pay.status = "refunded"
-                pay.refunded_amount = pay.captured_amount
-                pay.updated_at = now
+            # Update payments to refunded
+            for p in booking.payments:
+                if p.status == "captured":
+                    p.status = "refunded"
+                    p.refunded_amount = p.captured_amount
+                    p.updated_at = now
 
-        await self.session.flush()
-        logger.info(f"Cancelled booking '{booking_id}' (reference '{booking.booking_reference}'). Reason: {reason}")
+            await self.event_repo.record_event(
+                event_type="BOOKING_CANCELLED",
+                correlation_id=cid,
+                booking_id=booking_id,
+                user_id=booking.user_id,
+                state_from="confirmed",
+                state_to="cancelled",
+                metadata={"reason": reason}
+            )
+
         return booking
+
+    async def get_booking(self, booking_id: str) -> Optional[Booking]:
+        return await self.booking_repo.get_by_id(booking_id)
+
+    async def get_events(self, correlation_id: str) -> Sequence[BookingLifecycleEvent]:
+        return await self.event_repo.list_by_correlation_id(correlation_id)

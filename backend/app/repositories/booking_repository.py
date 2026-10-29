@@ -17,6 +17,15 @@ class BookingRepository(BaseRepository[Booking]):
     def __init__(self, session: AsyncSession):
         super().__init__(Booking, session)
 
+    async def get_by_id_with_items(self, booking_id: str) -> Optional[Booking]:
+        stmt = (
+            select(Booking)
+            .options(selectinload(Booking.booking_items), selectinload(Booking.payments))
+            .where(Booking.booking_id == booking_id)
+        )
+        res = await self.session.execute(stmt)
+        return res.scalar_one_or_none()
+
     async def get_by_idempotency_key(self, idempotency_key: str) -> Optional[Booking]:
         stmt = (
             select(Booking)

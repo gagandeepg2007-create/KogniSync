@@ -6,6 +6,7 @@ from app.db.models.travel import User, Trip, Itinerary
 from app.db.models.inventory import InventoryCalendar, Hold
 from app.db.models.booking import Booking, BookingItem
 from app.db.models.payment import Payment
+from app.db.models.events import BookingLifecycleEvent, IdempotencyRecord
 
 __all__ = [
     "Base",
@@ -28,5 +29,7 @@ __all__ = [
     "Hold",
     "Booking",
     "BookingItem",
-    "Payment"
+    "Payment",
+    "BookingLifecycleEvent",
+    "IdempotencyRecord"
 ]
