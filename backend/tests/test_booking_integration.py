@@ -5,16 +5,16 @@ from app.schemas.booking_contract import (
     JourneyBookingRequest,
     BookingLegItem,
 )
-from app.services.booking_service import BookingService
+from app.services.journey_booking_orchestrator import JourneyBookingOrchestrator
 from app.services.transport_repository import TransportRepository
 
 
 @pytest.fixture
 def booking_service():
-    return BookingService()
+    return JourneyBookingOrchestrator()
 
 
-def test_booking_contract_successful_confirmation(booking_service: BookingService):
+def test_booking_contract_successful_confirmation(booking_service: JourneyBookingOrchestrator):
     """
     Tests that a valid booking request secures holds, confirms reservation,
     and returns an official booking reference.
@@ -40,7 +40,7 @@ def test_booking_contract_successful_confirmation(booking_service: BookingServic
             )
         ]
     )
-    res = booking_service.book_journey(req)
+    res = booking_service.book_journey_sync(req)
     assert res.status == "CONFIRMED"
     assert res.booking_reference is not None
     assert res.booking_reference.startswith("KS-BKG-")
@@ -48,7 +48,7 @@ def test_booking_contract_successful_confirmation(booking_service: BookingServic
     assert res.legs[0].status == "CONFIRMED"
 
 
-def test_idempotency_key_replay(booking_service: BookingService):
+def test_idempotency_key_replay(booking_service: JourneyBookingOrchestrator):
     """
     Tests that re-submitting the exact same idempotency key returns
     an idempotent replay without re-reserving or creating duplicate bookings.
@@ -74,18 +74,18 @@ def test_idempotency_key_replay(booking_service: BookingService):
             )
         ]
     )
-    first_res = booking_service.book_journey(req)
+    first_res = booking_service.book_journey_sync(req)
     assert first_res.status == "CONFIRMED"
     first_ref = first_res.booking_reference
 
     # Re-submit identical key
-    second_res = booking_service.book_journey(req)
+    second_res = booking_service.book_journey_sync(req)
     assert second_res.status == "IDEMPOTENT_REPLAY"
     assert second_res.booking_reference == first_ref
     assert "Idempotent replay" in second_res.message
 
 
-def test_multileg_partial_failure_compensation(booking_service: BookingService):
+def test_multileg_partial_failure_compensation(booking_service: JourneyBookingOrchestrator):
     """
     Tests partial-failure policy:
     Leg 0 succeeds (available), but Leg 1 fails (exceeds inventory).
@@ -145,7 +145,7 @@ def test_multileg_partial_failure_compensation(booking_service: BookingService):
             ]
         )
 
-        res = booking_service.book_journey(req)
+        res = booking_service.book_journey_sync(req)
         # Invariant: Journey must NEVER be reported as confirmed
         assert res.status in ("PARTIALLY_FAILED", "REJECTED_NO_INVENTORY")
         assert res.booking_reference is None

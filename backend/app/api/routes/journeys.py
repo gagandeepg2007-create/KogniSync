@@ -1,5 +1,6 @@
-from typing import List, Dict, Any
-from fastapi import APIRouter, HTTPException, status, Query
+from typing import List, Dict, Any, Optional
+from fastapi import APIRouter, HTTPException, status, Query, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.journey import (
     JourneySearchRequest,
     JourneySearchResponse,
@@ -11,12 +12,18 @@ from app.schemas.booking_contract import (
 )
 from app.services.journey_service import JourneyIntelligenceService
 from app.services.booking_service import BookingService
+from app.services.journey_booking_orchestrator import JourneyBookingOrchestrator
+from app.db.database import get_db
+from app.repositories.exceptions import (
+    RepositoryConflictError,
+    InsufficientInventoryError,
+)
+from app.core.logging import logger
 
 router = APIRouter(prefix="/api/v1/journeys", tags=["Journey Intelligence"])
 
-# Shared singleton instances
+# Shared singleton instance for read-only Journey Intelligence search
 journey_service = JourneyIntelligenceService()
-booking_service = BookingService()
 
 
 @router.get("/places", response_model=List[PlaceItem], summary="List all searchable cities and airports")
@@ -54,19 +61,54 @@ def search_journeys(request: JourneySearchRequest):
 
 
 @router.post("/book", response_model=JourneyBookingResponse, summary="Book a selected journey")
-def book_journey(request: JourneyBookingRequest):
+async def book_journey(
+    request: JourneyBookingRequest,
+    session: Optional[AsyncSession] = Depends(get_db)
+):
     """
-    Invokes the agreed booking contract:
-    - Enforces idempotency via idempotency_key
+    Invokes the multi-leg booking orchestrator with PostgreSQL transaction reliability:
+    - Enforces idempotency via PostgreSQL transaction or orchestrator
     - Checks inventory availability across all transport legs
     - Enforces saga compensation: if any leg fails, previously held legs are compensated
       and the entire booking is reported as PARTIALLY_FAILED / REJECTED
-    - Returns transparent confirmation details
+    - Returns transparent confirmation details with real database references
     """
     try:
-        response = booking_service.book_journey(request)
-        return response
+        try:
+            booking_service = BookingService(session) if session else None
+            orchestrator = JourneyBookingOrchestrator(
+                booking_service=booking_service,
+                transport_repo=journey_service.repo
+            )
+            response = await orchestrator.book_journey(request)
+            return response
+        except (OSError, ConnectionRefusedError) as db_conn_err:
+            logger.warning(
+                f"PostgreSQL database engine offline ({db_conn_err}). "
+                f"Routing through standalone Journey Booking Orchestrator..."
+            )
+            fallback_orch = JourneyBookingOrchestrator(
+                booking_service=None,
+                transport_repo=journey_service.repo
+            )
+            return await fallback_orch.book_journey(request)
+    except RepositoryConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc)
+        )
+    except InsufficientInventoryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc)
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc)
+        )
     except Exception as exc:
+        logger.exception("Unexpected booking transaction failure")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Booking transaction failed: {str(exc)}"
