@@ -20,12 +20,46 @@ import {
   TrainFront,
   Footprints,
   Check,
+  Loader2,
 } from 'lucide-react';
 import { OptimizationWeights, TransportMode } from '../../types/journey';
-import { extractTravelIntent } from '../../api/journey';
+import { parseTravelIntent, TravelContext, TravelIntent } from '../../api/journey';
 
 interface JourneyPlannerProps {
   onSearchExecuted?: () => void;
+}
+
+function formatDisplayDate(dateStr: string): string {
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      const d = parseInt(parts[2], 10);
+      const dateObj = new Date(y, m - 1, d);
+      return dateObj.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    }
+    return dateStr;
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatTime12h(time24: string): string {
+  try {
+    const [hStr, mStr] = time24.split(':');
+    let h = parseInt(hStr, 10);
+    const m = mStr || '00';
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m} ${ampm}`;
+  } catch {
+    return time24;
+  }
 }
 
 export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
@@ -40,23 +74,24 @@ export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
   );
   const [origin, setOrigin] = useState('Bangalore');
   const [destination, setDestination] = useState('Chennai');
-  const [date, setDate] = useState('Dec 15, 2024');
+  const [date, setDate] = useState('Oct 30, 2026');
+  const [timeDeadlineText, setTimeDeadlineText] = useState('Arrive by 2:00 PM');
   const [passengers, setPassengers] = useState(1);
   const [isPassengersOpen, setIsPassengersOpen] = useState(false);
 
   // Preference Weights
   const [weights, setWeights] = useState<OptimizationWeights>({
     cost: 0.5,
-    duration: 0.25,
+    duration: 0.2, // Cost-focused / flexible default
     comfort: 0.15,
     carbon: 0.1,
   });
 
   // Budget Display State
   const [budgetMin] = useState(500);
-  const [budgetMax, setBudgetMax] = useState(10000);
+  const [budgetMax, setBudgetMax] = useState(3000);
 
-  // Transport Mode Selection (all checked except walk by default as in screenshot)
+  // Transport Mode Selection
   const [selectedModes, setSelectedModes] = useState<Record<TransportMode, boolean>>({
     flight: true,
     train: true,
@@ -66,29 +101,21 @@ export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
     walk: false,
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+  // AI Loading & Confirmation Feedback State
+  const [isUnderstanding, setIsUnderstanding] = useState(false);
+  const [understoodMessage, setUnderstoodMessage] = useState<string | null>(
+    '✨ Understood: Bangalore → Chennai · Tomorrow · Arrive by 2:00 PM · ₹3,000 budget · Cost-focused'
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Handle Intent Extraction when NL Query changes or preset is clicked
-  const handleApplyExample = async (queryText: string, orig: string, dest: string) => {
-    setNlQuery(queryText);
-    setOrigin(orig);
-    setDestination(dest);
-    try {
-      const intent = await extractTravelIntent(queryText);
-      if (intent.origin) setOrigin(intent.origin);
-      if (intent.destination) setDestination(intent.destination);
-      if (intent.weights) setWeights(intent.weights);
-    } catch {
-      // fallback to manual state
-    }
-  };
-
+  // Swap Origin and Destination
   const handleSwap = () => {
     const temp = origin;
     setOrigin(destination);
     setDestination(temp);
   };
 
+  // Toggle Transport Mode
   const toggleMode = (mode: TransportMode) => {
     setSelectedModes((prev) => ({
       ...prev,
@@ -96,27 +123,143 @@ export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
     }));
   };
 
-  const handleExecuteSearch = () => {
-    setIsLoading(true);
+  // Execute Navigation to Journey Results
+  const handleExecuteSearch = (resolvedIntent?: TravelIntent) => {
     const params = new URLSearchParams({
-      origin: origin || 'Bangalore',
-      destination: destination || 'Chennai',
-      date: date || 'Tomorrow',
-      passengers: passengers.toString(),
-      costWeight: weights.cost.toString(),
-      durationWeight: weights.duration.toString(),
-      comfortWeight: weights.comfort.toString(),
-      carbonWeight: weights.carbon.toString(),
+      origin: resolvedIntent?.origin || origin || 'Bangalore',
+      destination: resolvedIntent?.destination || destination || 'Chennai',
+      date: resolvedIntent?.date || date || 'Tomorrow',
+      passengers: (resolvedIntent?.passengers || passengers).toString(),
+      costWeight: (resolvedIntent?.time_priority !== undefined ? 1 - resolvedIntent.time_priority : weights.cost).toString(),
+      durationWeight: (resolvedIntent?.time_priority !== undefined ? resolvedIntent.time_priority : weights.duration).toString(),
+      comfortWeight: (resolvedIntent?.comfort !== undefined ? resolvedIntent.comfort : weights.comfort).toString(),
+      carbonWeight: (resolvedIntent?.sustainability !== undefined ? resolvedIntent.sustainability : weights.carbon).toString(),
     });
 
     if (nlQuery.trim()) {
       params.set('q', nlQuery.trim());
     }
-    if (budgetMax) {
-      params.set('budgetMax', budgetMax.toString());
+    const targetBudget = resolvedIntent?.budget !== undefined ? resolvedIntent.budget : budgetMax;
+    if (targetBudget) {
+      params.set('budgetMax', targetBudget.toString());
+    }
+    if (resolvedIntent?.arrival_deadline) {
+      params.set('arrivalBefore', resolvedIntent.arrival_deadline);
+    }
+    if (resolvedIntent?.departure_time) {
+      params.set('departureAfter', resolvedIntent.departure_time);
     }
 
     navigate(`/plan?${params.toString()}`);
+  };
+
+  // Handle Live Natural Language Interpretation with Gemini
+  const handleParseAndPlan = async (customQuery?: string) => {
+    const textToParse = (customQuery !== undefined ? customQuery : nlQuery).trim();
+    if (!textToParse) return;
+
+    setIsUnderstanding(true);
+    setErrorMessage(null);
+
+    const currentContext: TravelContext = {
+      origin: origin || null,
+      destination: destination || null,
+      date: date || null,
+      departure_time: null,
+      arrival_deadline: null,
+      passengers,
+      budget: budgetMax,
+      time_priority: weights.duration,
+      comfort: weights.comfort,
+      sustainability: weights.carbon,
+      preferred_modes: (Object.keys(selectedModes) as TransportMode[]).filter(
+        (m) => selectedModes[m]
+      ),
+    };
+
+    try {
+      const intent = await parseTravelIntent(textToParse, currentContext);
+
+      // 1. Update Origin & Destination
+      if (intent.origin) setOrigin(intent.origin);
+      if (intent.destination) setDestination(intent.destination);
+
+      // 2. Update Date
+      if (intent.date) {
+        setDate(formatDisplayDate(intent.date));
+      }
+
+      // 3. Update Time / Deadline Control
+      if (intent.arrival_deadline && intent.departure_time) {
+        setTimeDeadlineText(
+          `Depart ${formatTime12h(intent.departure_time)} · Arrive by ${formatTime12h(intent.arrival_deadline)}`
+        );
+      } else if (intent.arrival_deadline) {
+        setTimeDeadlineText(`Arrive by ${formatTime12h(intent.arrival_deadline)}`);
+      } else if (intent.departure_time) {
+        setTimeDeadlineText(`Depart at ${formatTime12h(intent.departure_time)}`);
+      }
+
+      // 4. Update Passengers
+      if (intent.passengers && intent.passengers >= 1) {
+        setPassengers(intent.passengers);
+      }
+
+      // 5. Update Budget Slider
+      if (intent.budget !== undefined && intent.budget !== null) {
+        setBudgetMax(intent.budget);
+      }
+
+      // 6. Update Sliders: Time Priority, Comfort, Sustainability
+      setWeights((prev) => ({
+        ...prev,
+        duration: intent.time_priority !== undefined ? intent.time_priority : prev.duration,
+        comfort: intent.comfort !== undefined ? intent.comfort : prev.comfort,
+        carbon: intent.sustainability !== undefined ? intent.sustainability : prev.carbon,
+      }));
+
+      // 7. Update Transport Modes if explicitly extracted
+      if (intent.preferred_modes && intent.preferred_modes.length > 0) {
+        const newModes: Record<TransportMode, boolean> = {
+          flight: false,
+          train: false,
+          bus: false,
+          cab: false,
+          metro: false,
+          walk: false,
+        };
+        for (const m of intent.preferred_modes) {
+          if (m in newModes) {
+            newModes[m as TransportMode] = true;
+          }
+        }
+        setSelectedModes(newModes);
+      }
+
+      // 8. Visual confirmation message
+      if (intent.intent_summary) {
+        setUnderstoodMessage(`✨ Understood: ${intent.intent_summary}`);
+      } else {
+        setUnderstoodMessage('✨ Journey details understood');
+      }
+
+      // Proceed to search
+      setTimeout(() => {
+        handleExecuteSearch(intent);
+      }, 700);
+    } catch {
+      setErrorMessage(
+        "Couldn't understand the journey request. Please try again."
+      );
+    } finally {
+      setIsUnderstanding(false);
+    }
+  };
+
+  // Example pills handler
+  const handleApplyExample = (queryText: string) => {
+    setNlQuery(queryText);
+    handleParseAndPlan(queryText);
   };
 
   return (
@@ -151,7 +294,7 @@ export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
       </div>
 
       {/* 2. Natural Language Travel Intent Input Box */}
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2">
         <div className="relative border border-[#DCE5F2] rounded-xl p-3 sm:p-3.5 bg-white shadow-2xs hover:border-[#1769FF]/50 transition-colors">
           <div className="flex items-start gap-2.5">
             <Sparkles className="w-4 h-4 text-[#4B4DED] mt-1 shrink-0" />
@@ -162,7 +305,7 @@ export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    handleExecuteSearch();
+                    handleParseAndPlan();
                   }
                 }}
                 rows={2}
@@ -183,28 +326,50 @@ export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
 
               <button
                 type="button"
-                onClick={handleExecuteSearch}
-                disabled={isLoading || !nlQuery.trim()}
-                className="bg-[#071B49] hover:bg-[#0D2E77] text-white px-4 py-2.5 rounded-lg font-semibold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all whitespace-nowrap cursor-pointer"
+                onClick={() => handleParseAndPlan()}
+                disabled={isUnderstanding || !nlQuery.trim()}
+                className="bg-[#071B49] hover:bg-[#0D2E77] text-white px-4 py-2.5 rounded-lg font-semibold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all whitespace-nowrap cursor-pointer disabled:opacity-80"
               >
-                <span>Plan Journey</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                {isUnderstanding ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                    <span>Understanding journey...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Plan Journey</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
               </button>
             </div>
           </div>
         </div>
 
+        {/* AI Understood Feedback / Confirmation Pill */}
+        {understoodMessage && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#EBF2FF] border border-[#BFDBFE] text-xs text-[#071B49] animate-in fade-in duration-200">
+            <Sparkles className="w-3.5 h-3.5 text-[#1769FF] shrink-0" />
+            <span className="font-semibold">{understoodMessage}</span>
+          </div>
+        )}
+
+        {/* Error Feedback */}
+        {errorMessage && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 animate-in fade-in duration-200">
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
         {/* Example Search Pills */}
-        <div className="flex items-center gap-2 flex-wrap text-xs text-[#52627A]">
+        <div className="flex items-center gap-2 flex-wrap text-xs text-[#52627A] pt-0.5">
           <span className="font-medium text-[11px] text-[#64748B] shrink-0">Try examples:</span>
           <div className="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
               onClick={() =>
                 handleApplyExample(
-                  'I need to reach Chennai from Bangalore tomorrow before 2 PM. My budget is ₹3000 and I prefer saving money over speed.',
-                  'Bangalore',
-                  'Chennai'
+                  'I need to reach Chennai from Bangalore tomorrow before 2 PM. My budget is ₹3000 and I prefer saving money over speed.'
                 )
               }
               className="px-2.5 py-0.5 rounded-full bg-white hover:bg-[#F5F8FC] border border-[#DCE5F2] hover:border-[#1769FF]/40 text-[11px] text-[#071B49] font-medium transition-colors cursor-pointer shadow-2xs"
@@ -216,42 +381,36 @@ export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
               type="button"
               onClick={() =>
                 handleApplyExample(
-                  'Fastest business trip from Delhi to Mumbai tomorrow arriving by 11 AM.',
-                  'Delhi',
-                  'Mumbai'
+                  'Fastest way from Bangalore to Goa this Saturday. Money isn\'t a problem.'
                 )
               }
               className="px-2.5 py-0.5 rounded-full bg-white hover:bg-[#F5F8FC] border border-[#DCE5F2] hover:border-[#1769FF]/40 text-[11px] text-[#071B49] font-medium transition-colors cursor-pointer shadow-2xs"
             >
-              Delhi to Mumbai
+              Bangalore to Goa
             </button>
 
             <button
               type="button"
               onClick={() =>
                 handleApplyExample(
-                  'Weekend leisure getaway from Mumbai to Goa for 2 passengers with scenic travel.',
-                  'Mumbai',
-                  'Goa'
+                  'I prefer trains and want to keep it under ₹2000.'
                 )
               }
               className="px-2.5 py-0.5 rounded-full bg-white hover:bg-[#F5F8FC] border border-[#DCE5F2] hover:border-[#1769FF]/40 text-[11px] text-[#071B49] font-medium transition-colors cursor-pointer shadow-2xs"
             >
-              Weekend trip to Goa
+              Trains under ₹2,000
             </button>
 
             <button
               type="button"
               onClick={() =>
                 handleApplyExample(
-                  'Executive express travel from Bangalore to Hyderabad tomorrow morning.',
-                  'Bangalore',
-                  'Hyderabad'
+                  'I want an eco-friendly trip.'
                 )
               }
               className="px-2.5 py-0.5 rounded-full bg-white hover:bg-[#F5F8FC] border border-[#DCE5F2] hover:border-[#1769FF]/40 text-[11px] text-[#071B49] font-medium transition-colors cursor-pointer shadow-2xs"
             >
-              Business trip to Hyderabad
+              Eco-friendly trip
             </button>
           </div>
         </div>
@@ -260,7 +419,7 @@ export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
       {/* Subtle Divider */}
       <div className="w-full h-px bg-slate-100 my-0.5" />
 
-      {/* 3. Structured Fields: From, Swap, To, Date, Passengers */}
+      {/* 3. Structured Fields: From, Swap, To, Date, Time/Deadline, Passengers */}
       <div className="flex flex-col sm:grid sm:grid-cols-2 lg:flex lg:flex-row lg:items-end gap-2.5">
         {/* From Field */}
         <div className="flex-1 flex flex-col gap-1 min-w-0">
@@ -346,8 +505,32 @@ export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
           </div>
         </div>
 
+        {/* Time / Deadline Field */}
+        <div className="flex-1 flex flex-col gap-1 min-w-0">
+          <span className="text-[11px] font-medium text-[#52627A]">Time / Deadline</span>
+          <div className="flex items-center gap-2 border border-[#DCE5F2] rounded-xl px-3 py-2 bg-white shadow-2xs hover:border-[#1769FF]/50 transition-colors h-10">
+            <Clock className="w-3.5 h-3.5 text-slate-700 shrink-0" />
+            <input
+              type="text"
+              value={timeDeadlineText}
+              onChange={(e) => setTimeDeadlineText(e.target.value)}
+              placeholder="Anytime"
+              className="w-full bg-transparent text-xs font-semibold text-[#071B49] focus:outline-none"
+            />
+            {timeDeadlineText && (
+              <button
+                type="button"
+                onClick={() => setTimeDeadlineText('')}
+                className="text-slate-300 hover:text-slate-500 cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Passengers Field */}
-        <div className="w-full sm:w-auto lg:w-32 flex flex-col gap-1 relative shrink-0">
+        <div className="w-full sm:w-auto lg:w-28 flex flex-col gap-1 relative shrink-0">
           <span className="text-[11px] font-medium text-[#52627A]">Passengers</span>
           <button
             type="button"
@@ -426,15 +609,19 @@ export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
               <div className="flex flex-col min-w-0 flex-1">
                 <span className="text-xs font-bold text-[#071B49]">Time Priority</span>
                 <div className="flex items-center justify-between text-[11px] text-[#52627A]">
-                  <span>Flexible</span>
-                  <span>Fastest</span>
+                  <span className={weights.duration <= 0.3 ? 'font-bold text-[#1769FF]' : ''}>
+                    Flexible
+                  </span>
+                  <span className={weights.duration >= 0.7 ? 'font-bold text-[#1769FF]' : ''}>
+                    Fastest
+                  </span>
                 </div>
               </div>
             </div>
             <input
               type="range"
               min={10}
-              max={80}
+              max={100}
               value={Math.round(weights.duration * 100)}
               onChange={(e) =>
                 setWeights((prev) => ({ ...prev, duration: parseInt(e.target.value, 10) / 100 }))
@@ -452,15 +639,19 @@ export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
               <div className="flex flex-col min-w-0 flex-1">
                 <span className="text-xs font-bold text-[#071B49]">Comfort</span>
                 <div className="flex items-center justify-between text-[11px] text-[#52627A]">
-                  <span>Basic</span>
-                  <span>Premium</span>
+                  <span className={weights.comfort <= 0.3 ? 'font-bold text-[#1769FF]' : ''}>
+                    Basic
+                  </span>
+                  <span className={weights.comfort >= 0.7 ? 'font-bold text-[#1769FF]' : ''}>
+                    Premium
+                  </span>
                 </div>
               </div>
             </div>
             <input
               type="range"
               min={10}
-              max={80}
+              max={100}
               value={Math.round(weights.comfort * 100)}
               onChange={(e) =>
                 setWeights((prev) => ({ ...prev, comfort: parseInt(e.target.value, 10) / 100 }))
@@ -478,15 +669,19 @@ export const JourneyPlanner: React.FC<JourneyPlannerProps> = () => {
               <div className="flex flex-col min-w-0 flex-1">
                 <span className="text-xs font-bold text-[#071B49]">Sustainability</span>
                 <div className="flex items-center justify-between text-[11px] text-[#52627A]">
-                  <span>Any</span>
-                  <span>Eco-friendly</span>
+                  <span className={weights.carbon <= 0.3 ? 'font-bold text-[#10A77A]' : ''}>
+                    Any
+                  </span>
+                  <span className={weights.carbon >= 0.7 ? 'font-bold text-[#10A77A]' : ''}>
+                    Eco-friendly
+                  </span>
                 </div>
               </div>
             </div>
             <input
               type="range"
               min={10}
-              max={80}
+              max={100}
               value={Math.round(weights.carbon * 100)}
               onChange={(e) =>
                 setWeights((prev) => ({ ...prev, carbon: parseInt(e.target.value, 10) / 100 }))

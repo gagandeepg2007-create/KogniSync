@@ -52,6 +52,55 @@ export async function getJourneyById(id: string): Promise<Journey | null> {
   return found || null;
 }
 
+export interface TravelContext {
+  origin?: string | null;
+  destination?: string | null;
+  date?: string | null;
+  departure_time?: string | null;
+  arrival_deadline?: string | null;
+  passengers?: number;
+  budget?: number | null;
+  currency?: string;
+  time_priority?: number;
+  comfort?: number;
+  sustainability?: number;
+  preferred_modes?: string[];
+}
+
+export interface TravelIntent {
+  origin?: string | null;
+  destination?: string | null;
+  date?: string | null;
+  departure_time?: string | null;
+  arrival_deadline?: string | null;
+  passengers?: number;
+  budget?: number | null;
+  currency?: string;
+  time_priority?: number;
+  comfort?: number;
+  sustainability?: number;
+  preferred_modes?: string[];
+  intent_summary?: string | null;
+  confidence?: number;
+}
+
+export async function parseTravelIntent(
+  text: string,
+  currentContext?: TravelContext
+): Promise<TravelIntent> {
+  const res = await apiClient<{ intent: TravelIntent }>('/api/ai/parse-travel-intent', {
+    method: 'POST',
+    body: JSON.stringify({
+      text,
+      current_context: currentContext,
+    }),
+  });
+  if (res?.intent) {
+    return res.intent;
+  }
+  throw new Error('Gemini API did not return structured travel intent.');
+}
+
 export interface ExtractedIntent {
   origin?: string;
   destination?: string;
