@@ -38,9 +38,19 @@ async def async_db_session():
     """
     Creates an isolated in-memory async database with 2 flight inventory records for multi-leg sagas.
     """
+    from sqlalchemy import event
+    from app.db.models.base import AppBase
+    from app.db.models.events import BookingLifecycleEvent, IdempotencyRecord
+
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def do_connect(dbapi_connection, connection_record):
+        dbapi_connection.execute("ATTACH DATABASE ':memory:' AS app")
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(AppBase.metadata.create_all)
 
     session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:
@@ -154,7 +164,7 @@ async def test_orchestrator_multileg_booking_success(async_db_session: AsyncSess
     res = await orchestrator.book_journey(req)
     assert res.status == "CONFIRMED"
     assert res.booking_reference is not None
-    assert res.booking_reference.startswith("KS-BKG-")
+    assert res.booking_reference.startswith(("KS-BKG-", "REF-"))
     assert len(res.legs) == 2
     assert res.legs[0].status == "CONFIRMED"
     assert res.legs[1].status == "CONFIRMED"

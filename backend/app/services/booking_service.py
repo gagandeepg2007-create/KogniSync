@@ -170,6 +170,15 @@ class BookingService:
             if existing_idemp.resource_id:
                 existing_hold = await self.hold_repo.get_by_id(existing_idemp.resource_id)
                 if existing_hold:
+                    if (
+                        existing_hold.inventory_id != inventory_id
+                        or existing_hold.user_id != user_id
+                        or existing_hold.units != units
+                    ):
+                        raise IdempotencyPayloadConflictError(
+                            f"Idempotency collision for key '{idempotency_key}': "
+                            f"existing payload conflicts with requested payload."
+                        )
                     return existing_hold
 
         # Check existing hold table idempotency key
