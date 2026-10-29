@@ -20,6 +20,26 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6380
     REDIS_URL: str = "redis://localhost:6380/0"
 
+    # Authoritative Canonical Transport Database
+    CANONICAL_DB_PATH: str = "BookingInventory/data/APS-05.db"
+
+    def resolve_canonical_db_path(self) -> str:
+        import os
+        from pathlib import Path
+        # Check current working directory or relative to project root
+        p = Path(self.CANONICAL_DB_PATH)
+        if p.exists():
+            return str(p.resolve())
+        # Try parent directory if running from backend/
+        p_parent = Path("..") / self.CANONICAL_DB_PATH
+        if p_parent.exists():
+            return str(p_parent.resolve())
+        # Check absolute from file location
+        p_abs = Path(__file__).resolve().parent.parent.parent.parent / self.CANONICAL_DB_PATH
+        if p_abs.exists():
+            return str(p_abs)
+        return str(p)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

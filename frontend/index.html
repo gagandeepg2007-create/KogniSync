@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KogniSync — Journey Intelligence & Multi-Modal Travel Orchestration</title>
+  <meta name="description" content="AI-Powered Multi-Modal Travel Orchestration and Journey Intelligence with verified booking reliability.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Main Top Navigation -->
+    <header class="app-header">
+      <div class="header-top-row">
+        <div class="brand">
+
+
+          <div class="brand-badge">
+            <span class="badge-dot"></span>
+            <span>KogniSync · Hackathon 2026</span>
+          </div>
+          <h1 class="brand-title">KogniSync Travel</h1>
+          <p class="brand-tagline">AI-Powered Multi-Modal Travel Orchestration & Verified Booking Reliability</p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs" aria-label="Main Navigation">
+          <a href="#/home" class="nav-tab-link" id="navHome" data-route="home">
+            <span class="nav-icon">🏠</span> Home
+          </a>
+          <a href="#/explore" class="nav-tab-link active" id="navExplore" data-route="explore">
+            <span class="nav-icon">🧭</span> Explore
+          </a>
+          <a href="#/bookings" class="nav-tab-link" id="navBookings" data-route="bookings">
+            <span class="nav-icon">📋</span> Bookings & Sagas
+          </a>
+        </nav>
+
+        <div class="header-status">
+          <div class="engine-indicator">
+            <span class="status-indicator-dot"></span>
+            <span class="engine-label">Canonical Dataset: <strong>APS-05 Active</strong></span>
+          </div>
+          <div class="sub-indicator">41,855 Real Rows · 4,000 Flights · 80 Airports</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ====================================================================
+         VIEW 1: HOME PAGE
+         ==================================================================== -->
+    <section class="page-view" id="homeView" style="display: none;">
+      <div class="home-hero-card">
+        <div class="hero-badge">AI Reliability + Multi-Modal Orchestration</div>
+        <h2 class="hero-title">Next-Generation Distributed Travel Intelligence</h2>
+        <p class="hero-desc">
+          KogniSync unifies journey planning with database-level booking reliability. Powered by canonical transport graphs, hard-constraint feasibility validation, preference-aware normalized ranking, and PostgreSQL saga compensation.
+        </p>
+        <div class="hero-actions">
+          <a href="#/explore" class="btn-hero-primary" id="homeExploreCtaBtn">
+            <span>Launch Explore Engine</span>
+            <span>→</span>
+          </a>
+          <a href="#/bookings" class="btn-hero-secondary" id="homeBookingsCtaBtn">
+            <span>Inspect Booking Reliability</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="home-features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <h3 class="feature-title">Journey Intelligence</h3>
+          <p class="feature-text">Deterministic route graph construction traversing direct and multi-leg connections. Strictly validates layover windows (45m–1440m) and prevents cyclic loops.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">⚖️</div>
+          <h3 class="feature-title">Preference-Aware Ranking</h3>
+          <p class="feature-text">Supports lowest cost, shortest duration, and balanced multi-objective optimization using normalized [0, 1] scales to prevent currency units from distorting time.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3 class="feature-title">PostgreSQL Saga Sockets</h3>
+          <p class="feature-text">Multi-leg inventory reservations guarded by idempotency keys. If any leg fails, automated compensation releases prior holds. Never reports partial success as confirmed.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3 class="feature-title">Zero Data Fabrication</h3>
+          <p class="feature-text">Built 100% on authoritative APS-05 synthetic records. Prices, timestamps, and inventory rows are real database values, completely adhering to rules R1–R8.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 2: EXPLORE PAGE (PRIMARY WORKSTREAM)
+         ==================================================================== -->
+    <section class="page-view" id="exploreView">
+      <!-- Quick Demo Presets for Judges -->
+      <div class="presets-container" id="presetsContainer">
+        <span class="presets-label">⚡ Judge Demo Scenarios:</span>
+        <button type="button" class="preset-btn" id="presetDirectBtn" data-preset="direct">
+          <span class="preset-icon">🛫</span> Direct Flight (Kochi → Mumbai)
+        </button>
+        <button type="button" class="preset-btn" id="presetConnectingBtn" data-preset="connecting">
+          <span class="preset-icon">🔄</span> Connecting 1-Stop (Bengaluru → Pune)
+        </button>
+        <button type="button" class="preset-btn" id="presetBudgetBtn" data-preset="budget">
+          <span class="preset-icon">⚠️</span> Budget Rejection (₹5,000 Cap)
+        </button>
+        <button type="button" class="preset-btn" id="presetDeadlineBtn" data-preset="deadline">
+          <span class="preset-icon">⏱️</span> Deadline Rejection (12:00 PM)
+        </button>
+      </div>
+
+      <!-- Main Layout Grid -->
+      <div class="main-layout">
+        <!-- Search Form Column -->
+        <section class="search-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Explore Itineraries</h2>
+            <span class="panel-subtitle">Multi-modal route discovery & constraints</span>
+          </div>
+
+          <form id="journeySearchForm" class="search-form" novalidate>
+            <!-- Transport Mode Selection Toggles -->
+            <div class="form-group">
+              <label class="form-label">Transport Categories</label>
+              <div class="transport-modes-bar" id="transportModesBar">
+                <label class="mode-toggle active" title="Active real schedule data from APS-05">
+                  <input type="checkbox" name="transport_mode" value="flights" checked>
+                  <span class="mode-icon">✈️</span>
+                  <span class="mode-name">Flights</span>
+                  <span class="mode-status-indicator live">Live</span>
+                </label>
+
+                <label class="mode-toggle" title="Ground transport integration pending">
+                  <input type="checkbox" name="transport_mode" value="trains">
+                  <span class="mode-icon">🚆</span>
+                  <span class="mode-name">Trains</span>
+                  <span class="mode-status-indicator pending">Sync Pending</span>
+                </label>
+
+                <label class="mode-toggle" title="Ground transport integration pending">
+                  <input type="checkbox" name="transport_mode" value="buses">
+                  <span class="mode-icon">🚌</span>
+                  <span class="mode-name">Buses</span>
+                  <span class="mode-status-indicator pending">Sync Pending</span>
+                </label>
+
+                <label class="mode-toggle" title="City taxi transfer integration pending">
+                  <input type="checkbox" name="transport_mode" value="cars">
+                  <span class="mode-icon">🚖</span>
+                  <span class="mode-name">Taxis</span>
+                  <span class="mode-status-indicator pending">Sync Pending</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Origin & Destination with Swap Button -->
+            <div class="location-selection-grid">
+              <div class="form-group">
+                <label for="originInput" class="form-label">Origin City or Airport</label>
+                <div class="input-wrapper">
+                  <span class="input-icon">📍</span>
+                  <input
+                    type="text"
+                    id="originInput"
+                    name="origin"
+                    class="form-control"
+                    placeholder="e.g. Kochi, Bengaluru, DEL"
+                    list="placesList"
+                    required
+                    value="Kochi"
+                  >
+                </div>
+              </div>
+
+              <!-- Swap Button -->
+              <div class="swap-button-wrapper">
+                <button type="button" class="btn-swap-locations" id="swapLocationsBtn" title="Swap Origin and Destination" aria-label="Swap Origin and Destination">
+                  <span class="swap-icon">⇄</span>
+                </button>
+              </div>
+
+              <div class="form-group">
+                <label for="destinationInput" class="form-label">Destination City or Airport</label>
+                <div class="input-wrapper">
+                  <span class="input-icon">🏁</span>
+                  <input
+                    type="text"
+                    id="destinationInput"
+                    name="destination"
+                    class="form-control"
+                    placeholder="e.g. Mumbai, Pune, BLR"
+                    list="placesList"
+                    required
+                    value="Mumbai"
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- Datalist for autocomplete -->
+            <datalist id="placesList"></datalist>
+
+            <!-- Travel Date & Passenger Count -->
+            <div class="form-row">
+              <div class="form-group">
+                <label for="travelDateInput" class="form-label">Departure Date</label>
+                <div class="input-wrapper">
+                  <span class="input-icon">📅</span>
+                  <input
+                    type="date"
+                    id="travelDateInput"
+                    name="travel_date"
+                    class="form-control"
+                    required
+                    value="2026-09-03"
+                    min="2026-09-01"
+                    max="2026-11-29"
+                  >
+                </div>
+              </div>
+
+              <!-- Passenger Stepper -->
+              <div class="form-group">
+                <label for="passengerCountInput" class="form-label">Passengers</label>
+                <div class="passenger-stepper-wrapper">
+                  <button type="button" class="btn-stepper" id="decPassengersBtn" aria-label="Decrease passenger count">−</button>
+                  <input
+                    type="number"
+                    id="passengerCountInput"
+                    name="passengers"
+                    class="form-control text-center mono-font"
+                    value="1"
+                    min="1"
+                    max="9"
+                    readonly
+                  >
+                  <button type="button" class="btn-stepper" id="incPassengersBtn" aria-label="Increase passenger count">+</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Service Tiers / Budget Level Selection -->
+            <div class="form-group">
+              <label class="form-label">Service Level / Budget Tier</label>
+              <div class="service-tiers-grid" id="serviceTiersGrid">
+                <label class="tier-card">
+                  <input type="radio" name="service_tier" value="budget">
+                  <div class="tier-content">
+                    <span class="tier-icon">🏷️</span>
+                    <span class="tier-name">Budget</span>
+                    <span class="tier-desc">Economy · Cost priority</span>
+                  </div>
+                </label>
+
+                <label class="tier-card active">
+                  <input type="radio" name="service_tier" value="balanced" checked>
+                  <div class="tier-content">
+                    <span class="tier-icon">⚖️</span>
+                    <span class="tier-name">Balanced</span>
+                    <span class="tier-desc">Optimal cost & duration</span>
+                  </div>
+                </label>
+
+                <label class="tier-card">
+                  <input type="radio" name="service_tier" value="premium">
+                  <div class="tier-content">
+                    <span class="tier-icon">💎</span>
+                    <span class="tier-name">Premium</span>
+                    <span class="tier-desc">Business · Fast travel</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Optional Arrival Deadline & Budget Constraint -->
+            <div class="form-row">
+              <div class="form-group">
+                <label for="budgetInput" class="form-label">Max Budget (INR Total)</label>
+                <div class="input-wrapper">
+                  <span class="input-icon">₹</span>
+                  <input
+                    type="number"
+                    id="budgetInput"
+                    name="max_budget"
+                    class="form-control"
+                    placeholder="Hard limit (optional)"
+                    step="500"
+                    min="1"
+                  >
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="arrivalDeadlineInput" class="form-label">Arrival Deadline (Optional)</label>
+                <div class="input-wrapper">
+                  <span class="input-icon">⏰</span>
+                  <input
+                    type="datetime-local"
+                    id="arrivalDeadlineInput"
+                    name="arrival_deadline"
+                    class="form-control"
+                    placeholder="Latest arrival"
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- Transfer Limit & Cabin Preference -->
+            <div class="form-row">
+              <div class="form-group">
+                <label for="transferLimitSelect" class="form-label">Transfer Limit</label>
+                <div class="input-wrapper">
+                  <span class="input-icon">🔀</span>
+                  <select id="transferLimitSelect" name="transfer_limit" class="form-control select-control">
+                    <option value="2" selected>Up to 2 Transfers</option>
+                    <option value="1">Max 1 Transfer</option>
+                    <option value="0">Direct Flights Only (0)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="cabinSelect" class="form-label">Cabin Class</label>
+                <div class="input-wrapper">
+                  <span class="input-icon">💺</span>
+                  <select id="cabinSelect" name="cabin_class" class="form-control select-control">
+                    <option value="any" selected>Any Available Class</option>
+                    <option value="economy">Economy Class</option>
+                    <option value="business">Business Class</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Optimization Preference (Hidden sync with Service Tier or overridden) -->
+            <div class="form-group">
+              <label class="form-label">Ranking Mode</label>
+              <div class="preference-toggle-group" id="preferenceToggleGroup">
+                <label class="toggle-option">
+                  <input type="radio" name="preference" value="balanced" checked>
+                  <div class="toggle-content">
+                    <span class="toggle-title">⚖️ Balanced</span>
+                    <span class="toggle-desc">Normalized cost + duration score</span>
+                  </div>
+                </label>
+
+                <label class="toggle-option">
+                  <input type="radio" name="preference" value="lowest_cost">
+                  <div class="toggle-content">
+                    <span class="toggle-title">💰 Lowest Cost</span>
+                    <span class="toggle-desc">Fare minimization</span>
+                  </div>
+                </label>
+
+                <label class="toggle-option">
+                  <input type="radio" name="preference" value="shortest_duration">
+                  <div class="toggle-content">
+                    <span class="toggle-title">⚡ Fastest</span>
+                    <span class="toggle-desc">Elapsed time minimization</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="searchSubmitBtn" class="btn-primary">
+              <span class="btn-icon">🔍</span>
+              <span class="btn-text">Search Available Journeys</span>
+              <div class="spinner" id="searchSpinner" aria-hidden="true"></div>
+            </button>
+          </form>
+        </section>
+
+        <!-- Results Column -->
+        <section class="results-panel">
+          <!-- Results Header / Summary Bar -->
+          <div class="results-header" id="resultsHeader">
+            <div class="summary-info">
+              <h2 class="results-title" id="resultsTitle">Explore Journey Results</h2>
+              <div class="meta-stats" id="metaStats">
+                <span class="stat-pill" id="statCandidates">0 candidates</span>
+                <span class="stat-pill stat-feasible" id="statFeasible">0 feasible</span>
+                <span class="stat-pill stat-infeasible" id="statInfeasible">0 rejected</span>
+                <span class="stat-pill" id="statPassengers">1 Passenger</span>
+              </div>
+            </div>
+            <div class="active-preference-badge" id="activePreferenceBadge">
+              Mode: <strong>Balanced</strong>
+            </div>
+          </div>
+
+          <!-- Feedback Alert / Messages -->
+          <div class="alert-box" id="feedbackAlert" style="display: none;"></div>
+
+          <!-- Journey Cards Container -->
+          <div class="journeys-container" id="journeysContainer">
+            <!-- Initial Placeholder State -->
+            <div class="empty-state" id="initialPlaceholder">
+              <div class="empty-icon">🧭</div>
+              <h3>Explore Multi-Modal Journeys</h3>
+              <p>Configure origin, destination, travel date, passenger count, and service tier to generate candidate routes from canonical schedules.</p>
+              <div class="empty-hint">Or click any <strong>Judge Demo Scenario</strong> above for instant evaluation.</div>
+            </div>
+          </div>
+
+          <!-- Infeasible / Rejected Candidates Accordion -->
+          <div class="rejected-section" id="rejectedSection" style="display: none;">
+            <div class="rejected-header" id="rejectedToggleBtn">
+              <div class="rejected-title-group">
+                <span class="rejected-icon">🚫</span>
+                <span class="rejected-title">Rejected Infeasible Candidates (<span id="rejectedCountBadge">0</span>)</span>
+              </div>
+              <span class="accordion-arrow" id="accordionArrow">▼</span>
+            </div>
+            <div class="rejected-body" id="rejectedBody" style="display: none;">
+              <p class="rejected-intro">These candidate routes exist in the dataset but were rejected before ranking because they violate user hard constraints:</p>
+              <div class="rejected-cards-list" id="rejectedCardsList"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 3: BOOKINGS & SAGAS MONITOR
+         ==================================================================== -->
+    <section class="page-view" id="bookingsView" style="display: none;">
+      <div class="bookings-monitor-card">
+        <div class="monitor-header">
+          <div class="monitor-title-group">
+            <span class="monitor-icon">🛡️</span>
+            <div>
+              <h2 class="monitor-title">Booking Reliability & Saga Audit Log</h2>
+              <p class="monitor-subtitle">Live inspection of idempotency keys, inventory locks, and saga compensations</p>
+            </div>
+          </div>
+          <button type="button" class="btn-secondary" id="refreshBookingsBtn">
+            <span>🔄 Refresh Records</span>
+          </button>
+        </div>
+
+        <div class="bookings-history-list" id="bookingsHistoryList">
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <h3>No Bookings Executed Yet in Current Session</h3>
+            <p>Select any journey from the <a href="#/explore" class="inline-link">Explore Page</a> and invoke the booking contract to view live saga tracking.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         MODAL: BOOKING INTEGRATION HANDSHAKE
+         ==================================================================== -->
+    <div class="modal-backdrop" id="bookingModalBackdrop" style="display: none;">
+      <div class="modal-card" id="bookingModal">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <span class="modal-icon">🔐</span>
+            <div>
+              <h3 class="modal-title">Booking Reliability Handshake</h3>
+              <p class="modal-subtitle">Invoking Booking Reliability Saga via Idempotency Contract</p>
+            </div>
+          </div>
+          <button type="button" class="modal-close-btn" id="modalCloseBtn">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Journey Review Summary -->
+          <div class="booking-summary-card" id="modalJourneySummary">
+            <!-- Dynamically injected -->
+          </div>
+
+          <!-- Booking Parameters Form -->
+          <div class="booking-form-fields">
+            <div class="form-group">
+              <label for="bookingUserId" class="form-label">Traveller User ID (Canonical)</label>
+              <input type="text" id="bookingUserId" class="form-control mono-font" value="usr_00000001" readonly>
+            </div>
+
+            <div class="form-group">
+              <label for="bookingIdempotencyKey" class="form-label">
+                Idempotency Key
+                <button type="button" class="link-btn" id="regenerateIdempotencyBtn">Generate New</button>
+              </label>
+              <input type="text" id="bookingIdempotencyKey" class="form-control mono-font" readonly>
+              <span class="field-hint">Guarantees safe retries without double inventory holds or duplicate bookings.</span>
+            </div>
+          </div>
+
+          <!-- Action Button -->
+          <button type="button" id="executeBookingBtn" class="btn-confirm-booking">
+            <span class="btn-icon">💳</span>
+            <span class="btn-text">Invoke Booking Reliability Contract</span>
+            <div class="spinner" id="bookingSpinner" style="display: none;"></div>
+          </button>
+
+          <!-- Booking Result Display -->
+          <div class="booking-outcome-container" id="bookingOutcome" style="display: none;">
+            <!-- Injected after contract execution -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <div class="footer-left">
+          <span>KogniSync · Explore Engine & Booking Contract</span>
+          <span class="divider">|</span>
+          <span>Zero Fabricated Data · Real APS-05 Schedules</span>
+        </div>
+        <div class="footer-right">
+          <span>Concurrency-Safe Distributed Architecture</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
