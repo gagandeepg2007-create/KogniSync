@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { HomePage } from './pages/HomePage';
+import { ExplorePage } from './pages/ExplorePage';
 import { ResultsPage } from './pages/ResultsPage';
 import { DetailsPage } from './pages/DetailsPage';
 import { BookingPage } from './pages/BookingPage';
@@ -28,6 +29,7 @@ export const App: React.FC = () => {
           <main className="flex-1 flex flex-col">
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/explore" element={<ExplorePage />} />
               <Route path="/plan" element={<ResultsPage />} />
               <Route path="/plan/:journeyId" element={<DetailsPage />} />
               <Route path="/booking/:journeyId" element={<BookingPage />} />
