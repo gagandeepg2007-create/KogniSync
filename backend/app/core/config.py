@@ -40,8 +40,12 @@ class Settings(BaseSettings):
             return str(p_abs)
         return str(p)
 
+    # Gemini AI Configuration
+    GEMINI_API_KEY: str | None = None
+    GEMINI_MODEL: str = "models/gemini-3.5-flash-lite"
+
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
         extra="ignore"
     )
